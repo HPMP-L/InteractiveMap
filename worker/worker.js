@@ -406,8 +406,12 @@ const MAX_BODY = 250_000;
 const recent = new Map();            // per-instance rate limit: visitor key -> timestamps
 let cache = { sha: '', text: '', at: 0 }; // base data.json, reused for a minute
 
+// settings typed in the dashboard often carry a stray space ("main "): every text setting is trimmed once
+const tidy = env => Object.fromEntries(Object.entries(env || {}).map(([k, v]) => [k, typeof v === 'string' ? v.trim() : v]));
+
 export default {
-  async fetch(request, env) {
+  async fetch(request, rawEnv) {
+    const env = tidy(rawEnv);
     const origin = request.headers.get('Origin') || '';
     const allowed = allowedOrigin(origin, env);
     const cors = {
@@ -418,7 +422,8 @@ export default {
     };
     if (allowed && origin) cors['Access-Control-Allow-Origin'] = origin;
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
-    if (request.method === 'GET') return json({ ok: true, service: 'research-map suggestions', repo: env.GITHUB_REPO || null, token: !!env.GITHUB_TOKEN,
+    if (request.method === 'GET') return json({ ok: true, service: 'research-map suggestions', repo: env.GITHUB_REPO || null,
+      branch: env.GITHUB_BRANCH || 'main', dataPath: env.DATA_PATH || 'data.json', token: !!env.GITHUB_TOKEN,
       antiSpamCheck: !!env.TURNSTILE_SECRET, allowedSites: originList(env), unsafeTestMode: devUnsafe(env) }, 200, cors);
     if (request.method !== 'POST') return json({ ok: false, error: 'Send suggestions with POST.' }, 405, cors);
     if (!allowed) return json({ ok: false, error: 'This site is not allowed to send suggestions here.' }, 403, cors);
@@ -429,7 +434,9 @@ export default {
       let status = Object.prototype.hasOwnProperty.call(e, 'status') ? e.status : (e && e.name === 'SuggestionError' ? 400 : 500);
       if (!Number.isInteger(status) || status < 400 || status > 599) status = 500;
       if (status >= 500) console.error(e && e.stack || e);
-      const msg = status >= 500 && status !== 503 ? 'The suggestion could not be saved right now. Try again in a few minutes.' : String(e.message);
+      // unexpected errors keep a short reference, so the maintainer can tell a GitHub hiccup from a bug
+      const ref = e && e.ref ? e.ref : e && e.name && e.name !== 'Error' ? `${e.name}: ${String(e.message).slice(0, 120)}` : '';
+      const msg = status >= 500 && status !== 503 ? `The suggestion could not be saved right now. Try again in a few minutes.${ref ? ` (${ref})` : ''}` : String(e.message);
       return json({ ok: false, error: msg }, status, cors);
     }
   },
@@ -556,7 +563,7 @@ async function handle(request, env) {
   await gh('/git/refs', { method: 'POST', body: { ref: `refs/heads/${branch}`, sha: commit.sha } });
   let pr;
   try {
-    pr = await gh('/pulls', { method: 'POST', body: { title, head: branch, base, body: bodyMd, maintainer_can_modify: true } });
+    pr = await gh('/pulls', { method: 'POST', body: { title, head: branch, base, body: bodyMd } });
   } catch (e) {
     try { await gh(`/git/refs/heads/${branch.split('/').map(encodeURIComponent).join('/')}`, { method: 'DELETE' }); } catch { /* best effort */ }
     throw e;
@@ -601,9 +608,14 @@ async function verifyTurnstile(secret, token, ip, env) {
 const tokenOk = new Set();
 async function checkToken(token, repo) {
   if (tokenOk.has(token)) return;
+  // a fine-grained token can only reach repositories of its own account, never the owner's repository as a collaborator
+  if (/^github_pat_/.test(token)) {
+    console.error('GITHUB_TOKEN is a fine-grained token: the robot account needs a classic token with public_repo (HOSTING.md step 3)');
+    throw clientError('The suggestion service is not set up correctly: the GitHub token is a fine-grained token. The robot account needs a classic token with the public_repo scope. Please tell the maintainer.', 503);
+  }
   const res = await fetch('https://api.github.com/user', { headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'research-map-suggestions' } });
   if (res.status === 401) throw clientError('The suggestion service is not configured correctly (GitHub token refused).', 503);
-  if (!res.ok) { const e = new Error(`GitHub ${res.status} on GET /user`); e.status = 502; throw e; }
+  if (!res.ok) { const e = new Error(`GitHub ${res.status} on GET /user`); e.status = 502; e.ref = e.message; throw e; }
   const me = await res.json();
   const owner = String(repo).split('/')[0].toLowerCase();
   if (String(me.login || '').toLowerCase() === owner) {
@@ -633,8 +645,15 @@ function github(token, repo) {
     });
     if (!res.ok) {
       const detail = await res.text().catch(() => '');
-      const e = new Error(`GitHub ${res.status} on ${opts.method || 'GET'} ${path}: ${detail.slice(0, 300)}`);
-      e.status = 502;
+      const step = `${opts.method || 'GET'} ${path.split('?')[0]}`;
+      const e = new Error(`GitHub ${res.status} on ${step}: ${detail.slice(0, 300)}`);
+      if (res.status >= 500 || res.status === 429) { e.status = 502; e.ref = `GitHub ${res.status} on ${step}`; throw e; } // GitHub hiccup: try again later
+      // anything else is a setup problem (rights of the robot account, token, branch rules): say which step GitHub refused
+      let why = '';
+      try { const j = JSON.parse(detail); why = [j.message, ...(Array.isArray(j.errors) ? j.errors.map(x => (x && (x.message || x.code)) || '') : [])].filter(Boolean).join('; '); } catch { why = detail; }
+      console.error(e.message);
+      e.status = 503;
+      e.message = `The suggestion service is not set up correctly: GitHub answered ${res.status} on ${step}${why ? ` (${why.replace(/\s+/g, ' ').slice(0, 200)})` : ''}. Please tell the maintainer.`;
       throw e;
     }
     if (res.status === 204) return null;

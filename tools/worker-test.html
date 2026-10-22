@@ -229,7 +229,30 @@ window.fetch = async (url, opts = {}) => {
 };
 r = await send({ ...base, changes: [{ type: 'comment', text: 'this PR will fail' }] });
 window.fetch = prevFetch; void realPulls;
-check('failed PR removes its branch', r.status === 502 && deleted === 1, { status: r.status, deleted });
+check('failed PR removes its branch and names the refused step', r.status === 503 && deleted === 1 && /GitHub answered 422 on POST \/pulls \(Validation Failed\)/.test(r.body.error), { status: r.status, deleted, error: r.body.error });
+
+// setup problems name the GitHub step; GitHub hiccups stay a "try again" message with a short reference
+const failOn = (re, status, body) => { const prev = window.fetch; window.fetch = async (url, opts = {}) => (re.test(String(url)) && (opts.method || 'GET') !== 'GET' ? new Response(body, { status }) : prev(url, opts)); return () => { window.fetch = prev; }; };
+let undo = failOn(/\/git\/blobs$/, 404, '{"message":"Not Found"}');
+r = await send({ ...base, changes: [{ type: 'comment', text: 'robot cannot write' }] });
+undo();
+check('robot without write access: 503 naming POST /git/blobs', r.status === 503 && /404 on POST \/git\/blobs \(Not Found\)/.test(r.body.error), r.body);
+undo = failOn(/\/git\/refs$/, 422, '{"message":"Repository rule violations found","errors":[{"message":"Cannot create ref due to creations being restricted."}]}');
+r = await send({ ...base, changes: [{ type: 'comment', text: 'branch rule blocks the robot' }] });
+undo();
+check('branch rule refusing the robot: 503 with GitHub\'s reason', r.status === 503 && /creations being restricted/.test(r.body.error), r.body);
+undo = failOn(/\/git\/trees$/, 502, 'Bad gateway');
+r = await send({ ...base, changes: [{ type: 'comment', text: 'github hiccup' }] });
+undo();
+check('GitHub hiccup: try-again message with a reference', r.status === 502 && /Try again in a few minutes\. \(GitHub 502 on POST \/git\/trees\)/.test(r.body.error), r.body);
+r = await send({ ...base, changes: [{ type: 'comment', text: 'fine-grained token' }] }, { envOver: { GITHUB_TOKEN: 'github_pat_11TESTONLY' } });
+check('fine-grained token refused with a clear 503', r.status === 503 && /fine-grained token/.test(r.body.error) && /classic token/.test(r.body.error), r.body);
+r = await send({ ...base, changes: [{ type: 'comment', text: 'stray spaces in the settings' }] }, { envOver: { GITHUB_BRANCH: 'main ', GITHUB_REPO: ' me/map', DATA_PATH: 'data.json ' } });
+check('stray spaces in the Worker settings are ignored', r.status === 200, r.body);
+r = await send(null, { method: 'GET', envOver: { GITHUB_BRANCH: 'main ' } });
+check('health check shows the branch without the stray space', r.body.branch === 'main' && r.body.dataPath === 'data.json', r.body);
+r = await send({ ...base, changes: [{ type: 'comment', text: 'plain same-repo pull request' }] });
+check('pull request created without maintainer_can_modify', r.status === 200 && !('maintainer_can_modify' in gh.pulls.at(-1)), gh.pulls.at(-1) && Object.keys(gh.pulls.at(-1)));
 
 // IPv6 addresses written in short form still group by subscriber
 codes = [];
