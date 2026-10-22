@@ -5446,7 +5446,7 @@
             }
           ],
           "thesis": {
-            "title": "What the thesis must deliver",
+            "title": "What are the takeaways?",
             "items": [
               "Predict, before and during the run, the calls, durations and idle time of an agent trajectory, from W and the prefix.",
               "Translate these quantities into resources per layer, tools and orchestration included, where no prediction exists.",
