@@ -20,6 +20,24 @@ cells) proposes a missing paper with its place in a matrix and on the map. Visit
 sentence and send them, in three steps on the **Suggest** tab. Each suggestion becomes a pull request in this repository;
 nothing changes on the site, or in the README, until the maintainer approves and merges it.
 
+The panel of a map box has an **Add below** block: **Add a paper**, **Add a sub-section** (a new concept box, a name and an
+optional line under it), **Add a question or idea** and **Attach a listed paper**; a column header has **Add a section** and
+**Add a question or idea**, in a lane the visitor picks. Forms start from where the visitor clicked:
+
+- **Add a paper** from a box places the paper below that box, and in the matrix cell the box is linked to: its own `links`,
+  or those of the nearest box above it, then the lane's, then the column header's. A row or a column is filled in only when
+  the links agree on a single one; the boxes further up can complete what is left, on the same condition. What is not known
+  stays to choose, and the form says so in its **Where it will go** summary.
+- One suggestion adds at most 5 boxes to the map (`CORE.LIMITS.mapBoxes`): the panels say how many are left, and when none
+  is, a paper can still be added to the list and its matrix, not on the map.
+- **Add a paper** from a matrix cell places it in that cell, and below the map box linked to exactly that cell when there is
+  only one; the boxes linked to the cell are listed first.
+- A sub-section added a minute ago can take papers right away, before anything is sent: forms work on the data with the
+  visitor's pending changes applied (`S.eff`), and `CORE.apply` gives the new box the same id in the page and in the worker
+  (`s` + a hash of its parent and its text).
+
+All of this is in `index.html`: `core.js` already accepts these changes, so the worker does not change.
+
 ## The README is generated
 
 `README.md` is written from `data.json` by `CORE.readme` in `core.js`, in the style of an "awesome" list: one section per

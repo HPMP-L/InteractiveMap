@@ -163,6 +163,25 @@ check('nothing can be added below the bibliography', /bibliography/.test(threw),
 threw = '';
 try { CORE.apply(data, [{ type: 'node.add', near: 'k3PXRv-HAhmkEIkEhYpQ-26', kind: 'question', text: 'Under a note' }]); } catch (e) { threw = e.message; }
 check('nothing can be added below a note', /key insights/.test(threw), threw);
+// a sub-section and a paper inside it, sent together: the page learns the new box's id by applying the changes itself
+// (CORE.apply is deterministic), so the worker must build exactly the map the visitor saw
+{
+  const sect = { type: 'node.add', near: 'k3PXRv-HAhmkEIkEhYpQ-147', kind: 'concept', text: 'Hosted or self-run\nWho runs the sandbox' };
+  const sid = CORE.apply(data, [sect]).data.map.nodes.at(-1).id;
+  const changes = [sect,
+    { type: 'paper.add', tmp: 'new:1', paper: { short: 'Sandbox Bill', title: 'What a Sandbox Costs an Agent', venue: 'arXiv 2026', url: '', status: 'preprint', proximity: 2, evidence: 'testbed', verdict: 'works', does: 'Compares hosted and self-run sandboxes.', keyResult: '', whyProximity: '', gap: '', limitation: '' } },
+    { type: 'placement.add', table: 'm1', row: 'M1', col: 'TRo', paper: 'new:1', main: true, why: 'Measures what each sandbox costs per call.' },
+    { type: 'node.add', near: sid, kind: 'paper', paper: 'new:1', text: 'Hosted sandboxes cost more per call.' }];
+  const seen = CORE.apply(data, changes).data;
+  r = await send({ ...base, changes });
+  check('sub-section with a paper inside accepted', r.status === 200, r.body);
+  const d4 = lastData();
+  const s4 = d4.map.nodes.find(x => x.id === sid);
+  check('sub-section stored below the chosen box', !!s4 && s4.kind === 'concept' && s4.parent === 'k3PXRv-HAhmkEIkEhYpQ-147' && s4.text === sect.text, s4);
+  check('the paper box sits in the new sub-section', d4.map.nodes.some(x => x.kind === 'paper' && x.parent === sid));
+  check('the worker builds the map the visitor saw', CORE.format(d4) === CORE.format(seen));
+  check('README regenerated with the sub-section suggestion', lastFile('README.md') === CORE.readme(d4));
+}
 const runs = [];
 for (let k = 0; k < 7; k++) { // warm runs, like a busy worker
   const t0 = performance.now();

@@ -563,6 +563,15 @@ input::placeholder,textarea::placeholder{color:var(--muted); opacity:1}
 .radio-row label{display:flex; gap:6px; align-items:center}
 .err{color:var(--bad); font-size:13.5px; margin:0}
 .okmsg{color:var(--ok); font-size:13.5px; margin:0}
+/* "Where it will go" at the top of "Add a paper", filled in from where the visitor clicked */
+.form .where{display:grid; gap:4px; padding:10px 12px; border-radius:12px; background:var(--accent-soft)}
+.form .where .dg-l{margin:0; color:var(--ink)}
+.where-l{margin:0; padding-left:18px; display:grid; gap:2px; font-size:13.5px; color:var(--ink-2)}
+.form .where .hint{font-size:12px; color:var(--muted)}
+/* after adding a sub-section: what to put in it */
+.dr .actions.next{border-top:0; padding-top:0}
+.dr .actions.next .lbl{margin-top:0}
+.dr .actions .hint{flex-basis:100%; margin:0; font-size:12.5px; color:var(--muted)}
 /* "Suggest a change": one step at a time */
 html{scroll-padding-top:calc(var(--hdr-h) + var(--bar-h, 0px) + 12px)}
 .wiz{max-width:780px; display:grid; gap:14px; margin-top:14px}
@@ -2252,11 +2261,39 @@ function panelNode(id) {
     if (rel.length) body.append(blk('Also related', h('ul', { class: 'linklist' }, rel.map(i => h('li', null, h('button', { type: 'button', class: 'go', onclick: () => goNode(i) }, clipText(nodeTitle(S.I.nodes[i]), 70)))))));
     body.append(h('div', { class: 'actions' }, h('span', { class: 'lbl', text: 'Improve this part of the map' }),
       h('button', { class: 'btn primary', type: 'button', text: 'Suggest an edit', onclick: () => formNode(id) }),
-      n.kind !== 'note' && (S.I.depth[id] || 0) < 5 ? h('button', { class: 'btn', type: 'button', text: n.kind === 'chain' ? 'Add a question to this column' : 'Add a question or idea below', onclick: () => formAddNode(id) }) : null,
-      n.kind !== 'note' && n.kind !== 'chain' && (S.I.depth[id] || 0) < 5 ? h('button', { class: 'btn', type: 'button', text: 'Attach a paper below', onclick: () => formAttachPaper(id) }) : null,
-      n.kind !== 'note' && n.kind !== 'chain' && (S.I.depth[id] || 0) < 5 ? h('button', { class: 'btn', type: 'button', text: 'Add a paper below', onclick: () => select({ type: 'new', id: 'paper^' + id }) }) : null,
       h('button', { class: 'btn ghost', type: 'button', text: 'Comment', onclick: () => formComment(`map box “${clipText(nodeTitle(n), 50)}” (${id})`) })));
+    // what can go below this box: a paper, a sub-section, a question. Each form starts from this box.
+    if (canHoldBoxes(n) && effDepth(id) < 5) body.append(addBelowActions(n));
   });
+}
+/* One suggestion adds at most CORE.LIMITS.mapBoxes boxes to the map (core.js): what the visitor's changes have left */
+const mapBoxesLeft = () => CORE.LIMITS.mapBoxes - S.basket.filter(b => b.change && b.change.type === 'node.add').length;
+const boxBudgetText = () => `Your changes already add ${CORE.LIMITS.mapBoxes} boxes to the map, the most one suggestion can hold`;
+/* what to do about it: below a published box, send first and add more right after; below a box that is itself one of
+   the visitor's changes, more can only come once the suggestion is published (sending removes it from this page) */
+const isPublishedBox = id => S.base.map.nodes.some(x => x.id === id);
+const budgetWayOut = near => near && !isPublishedBox(near) ? 'This new box can take more once your suggestion is published.' : 'Send your changes first, then you can add more here.';
+/* "Add below …": the same buttons in a box's panel and after adding a sub-section. A box 5 levels deep takes nothing
+   (core.js), so a sub-section, which must be able to hold papers, needs a box at most 3 levels deep. */
+function addBelowActions(n, inAdded) {
+  const col = n.kind === 'chain', d = effDepth(n.id), left = mapBoxesLeft();
+  const label = h('span', { class: 'lbl', text: col ? 'Add to this column' : `Add below “${clipText(nodeTitle(n), 50)}”` });
+  // no map box left in this suggestion: a paper can still go into the list and its matrix cell, just not on the map yet
+  if (left <= 0) return h('div', { class: 'actions add-below' }, label,
+    h('p', { class: 'hint', text: `${boxBudgetText()}. ${budgetWayOut(n.id)}${col ? '' : ' A paper added now goes into the list and its matrix, not on the map.'}` }),
+    col ? null : h('button', { class: 'btn', type: 'button', text: 'Add a paper', onclick: () => select({ type: 'new', id: 'paper^' + n.id }) }),
+    inAdded ? null : h('button', { class: 'btn', type: 'button', text: 'Review and send →', onclick: openSuggest }));
+  return h('div', { class: 'actions add-below' }, label,
+    col ? null : h('button', { class: 'btn', type: 'button', text: 'Add a paper', onclick: () => select({ type: 'new', id: 'paper^' + n.id }) }),
+    d < 4 ? h('button', { class: 'btn', type: 'button', text: col ? 'Add a section' : 'Add a sub-section', onclick: () => formAddNode(n.id, 'concept') }) : null,
+    h('button', { class: 'btn', type: 'button', text: 'Add a question or idea', onclick: () => formAddNode(n.id, 'question') }),
+    col ? null : h('button', { class: 'btn', type: 'button', text: 'Attach a listed paper', onclick: () => formAttachPaper(n.id) }),
+    left < CORE.LIMITS.mapBoxes ? h('p', { class: 'hint', text: `Your changes can still add ${left} box${left > 1 ? 'es' : ''} to the map in this suggestion.` }) : null);
+}
+/* before adding boxes to the map: say plainly when this suggestion cannot take more */
+function checkBoxBudget(near, paper) {
+  syncBasket();
+  if (mapBoxesLeft() <= 0) throw new Error(`${boxBudgetText()}. ${paper ? 'Choose “Not on the map” for this paper. ' : ''}${budgetWayOut(near)}`);
 }
 function panelLane(laneId) {
   const lane = S.data.map.lanes.find(l => l.id === laneId);
@@ -2327,6 +2364,117 @@ function panelAxis(tid, type, id) {
   });
 }
 
+/* ---------- the map with the visitor's pending changes (S.eff) ----------
+   Forms work on it, so a sub-section added a minute ago can already take papers, even with "Show my changes" off. */
+const BOX_PARENTS = ['chain', 'concept', 'question', 'group', 'framing']; // boxes that can have boxes below them
+const canHoldBoxes = n => !!n && BOX_PARENTS.includes(n.kind);
+function effMap() {
+  if (S.effMap && S.effMap.of === S.eff) return S.effMap;
+  const byId = new Map(S.eff.map.nodes.map(n => [n.id, n])), kids = new Map();
+  S.eff.map.nodes.forEach(n => { if (n.parent && byId.has(n.parent)) { if (!kids.has(n.parent)) kids.set(n.parent, []); kids.get(n.parent).push(n); } });
+  // the box itself, then its parent, and so on up to the top of its branch
+  const chain = id => { const out = [], seen = new Set(); let q = byId.get(id); while (q && !seen.has(q.id)) { seen.add(q.id); out.push(q); q = q.parent ? byId.get(q.parent) : null; } return out; };
+  return (S.effMap = { of: S.eff, byId, kids, chain });
+}
+const effNode = id => effMap().byId.get(id);
+const effDepth = id => Math.max(0, effMap().chain(id).length - 1);
+/* where a box sits, as a reader would say it: "Execution · Resources › Execution" for "Tools and sandboxes" */
+function boxPlace(id, max = 80) {
+  const M = effMap(), up = M.chain(id).reverse(), root = up[0];
+  const lane = root && S.eff.map.lanes.find(l => l.id === root.lane);
+  const col = root && S.eff.map.columns.find(c => c.id === root.column);
+  const colBox = col && M.byId.get(col.node);
+  const all = [lane ? lane.label + (colBox ? ' · ' + firstLine(colBox.text) : '') : null, ...up.slice(0, -1).map(n => clipText(nodeTitle(n), 40))].filter(Boolean);
+  // too long: drop from the far end, so the nearest boxes (what tells two boxes of the same name apart) stay
+  const parts = all.slice();
+  while (parts.length > 1 && parts.join(' › ').length > max) parts.shift();
+  return (parts.length < all.length ? '… › ' : '') + parts.join(' › ');
+}
+/* The matrix cell a box of the map points to, to place a paper added from that box. The nearest level with links decides:
+   the box itself, then each box above it, then its lane, then the header of its column (last, so a lane linked to its
+   own matrix, like Orchestration, keeps it). That level gives the matrix
+   (the most precise link, the first matrix on a tie) and a row or a column only when all its links to that matrix agree
+   on one; a coordinate it leaves open is taken from the levels further up, again only when they agree (a box linked to
+   row M2, below a box linked to the cell M2 × W→T, gives that cell). Nothing is ever picked among several answers.
+   Returns { table, row, col } with '' for what stays to choose, or null. */
+function cellFromBox(id) {
+  const up = effMap().chain(id);
+  if (!up.length) return null;
+  const root = up[up.length - 1];
+  const lane = S.eff.map.lanes.find(l => l.id === root.lane);
+  const head = !root.parent && root.column ? effNode((S.eff.map.columns.find(c => c.id === root.column) || {}).node) : null;
+  const levels = up.map(n => n.links || []).concat([lane && lane.links || [], head && head.links || []]);
+  // a placement goes into a real matrix (m1, m2, m3); a link to a filtered view counts for the matrix it shows
+  const norm = l => {
+    if (!l || typeof l.table !== 'string' || !own(S.eff.tables, l.table)) return null;
+    const table = S.eff.tables[l.table].derivedFrom || l.table, t = S.eff.tables[table];
+    if (!/^m[123]$/.test(table) || !t || t.derivedFrom) return null;
+    const row = l.row && t.groups.some(g => g.rows.some(r => r.id === l.row)) ? l.row : '';
+    const col = l.col && t.cols.some(c => c.id === l.col) ? l.col : '';
+    return { table, row, col };
+  };
+  const exact = l => (l.row ? 1 : 0) + (l.col ? 1 : 0);
+  for (let k = 0; k < levels.length; k++) {
+    const ls = levels[k].map(norm).filter(Boolean);
+    if (!ls.length) continue;
+    // the matrix: the most precise link's; at equal precision the first matrix, whose cells make the Awesome list
+    const table = ls.slice().sort((a, b) => exact(b) - exact(a) || (a.table === 'm1' ? 0 : 1) - (b.table === 'm1' ? 0 : 1))[0].table;
+    const out = { table, row: '', col: '' };
+    let rowDone = false, colDone = false;
+    // this level, then the ones above: the nearest level that names a row (a column) decides it, and only a single
+    // answer there fills it in; several answers leave the choice to the visitor
+    for (const lv of [ls].concat(levels.slice(k + 1).map(x => x.map(norm).filter(Boolean)))) {
+      if (rowDone && colDone) break;
+      const fit = lv.filter(l => l.table === table && (!out.row || !l.row || l.row === out.row) && (!out.col || !l.col || l.col === out.col));
+      const rows = [...new Set(fit.map(l => l.row).filter(Boolean))], cols = [...new Set(fit.map(l => l.col).filter(Boolean))];
+      if (!rowDone && rows.length) { if (rows.length === 1) out.row = rows[0]; rowDone = true; }
+      if (!colDone && cols.length) { if (cols.length === 1) out.col = cols[0]; colDone = true; }
+    }
+    return out;
+  }
+  return null;
+}
+/* The boxes of the map linked to a matrix cell: to the cell itself first, then to its row or its column */
+function boxesForCell(table, row, col) {
+  const exact = [], near = [];
+  S.eff.map.nodes.forEach(n => {
+    if (!canHoldBoxes(n) || n.kind === 'chain' || effDepth(n.id) >= 5) return;
+    const ls = (n.links || []).filter(l => l && (l.table === table || (own(S.eff.tables, l.table) && S.eff.tables[l.table].derivedFrom === table)));
+    if (ls.some(l => l.row === row && l.col === col)) exact.push(n.id);
+    else if (ls.some(l => (l.row === row && !l.col) || (l.col === col && !l.row))) near.push(n.id);
+  });
+  return { exact, near };
+}
+/* A list of the boxes a paper (or a box) can go under, laid out like the map: one group per area, each box under its
+   parent. Boxes with the same name are told apart by where they sit. `first`: groups to offer at the top, [{ label, ids }]. */
+function boxSelect(id, selected, first) {
+  const M = effMap();
+  const ok = n => canHoldBoxes(n) && n.kind !== 'chain' && effDepth(n.id) < 5;
+  const opt = (n, indent, isSel) => h('option', { value: n.id, text: '\u2003'.repeat(indent) + (n.kind === 'question' ? '? ' : '') + clipText(nodeTitle(n), 60), selected: isSel });
+  let picked = false;
+  const take = n => { const s = !picked && n.id === selected; if (s) picked = true; return s; };
+  const sel = h('select', { id }, h('option', { value: '', text: 'Not on the map' }));
+  (first || []).forEach(g => {
+    const top = (g.ids || []).map(i => M.byId.get(i)).filter(ok);
+    if (top.length) sel.append(h('optgroup', { label: g.label }, top.map(n => h('option', { value: n.id, text: clipText(nodeTitle(n), 60) + ' — ' + boxPlace(n.id, 60), selected: take(n) }))));
+  });
+  const roots = S.eff.map.nodes.filter(n => n.kind !== 'chain' && !(n.parent && M.byId.has(n.parent)));
+  const walk = (n, depth, out, seen) => {
+    if (seen.has(n.id)) return; seen.add(n.id);
+    if (ok(n)) out.push(opt(n, depth, take(n)));
+    (M.kids.get(n.id) || []).forEach(k => walk(k, ok(n) ? depth + 1 : depth, out, seen));
+  };
+  const seen = new Set();
+  const area = (label, list) => { const out = []; list.forEach(r => walk(r, 0, out, seen)); if (out.length) sel.append(h('optgroup', { label }, out)); };
+  area('Above the lanes', roots.filter(r => !r.lane));
+  S.eff.map.lanes.forEach(l => {
+    if (l.span) { area(l.label, roots.filter(r => r.lane === l.id)); return; }
+    S.eff.map.columns.forEach(c => { const cb = M.byId.get(c.node); area(`${l.label} · ${cb ? firstLine(cb.text) : c.id}`, roots.filter(r => r.lane === l.id && r.column === c.id)); });
+  });
+  area('Elsewhere', roots.filter(r => !seen.has(r.id)));
+  return sel;
+}
+
 /* ---------- suggestion forms (in the side panel) ---------- */
 function formShell(kicker, title, intro, build, onSubmit, submitLabel) {
   S.editing = true; S.formDirty = false;
@@ -2347,7 +2495,8 @@ function formShell(kicker, title, intro, build, onSubmit, submitLabel) {
     form.addEventListener('submit', e => {
       e.preventDefault(); err.textContent = '';
       try {
-        onSubmit(form); S.editing = false; S.formDirty = false;
+        // onSubmit may return what to offer next (e.g. filling a new sub-section)
+        const next = onSubmit(form); S.editing = false; S.formDirty = false;
         const sel = S.sel;
         // a form opened on its own address (new paper, comment) must not come back with the browser's Back button
         if (sel && (sel.type === 'new' || sel.type === 'comment')) { history.replaceState(null, '', '#' + S.view); S.lastHash = location.hash; }
@@ -2355,7 +2504,7 @@ function formShell(kicker, title, intro, build, onSubmit, submitLabel) {
           if (sel && sel.type !== 'new' && sel.type !== 'comment') { openDrawer(sel); return; }
           closeDrawer(true);
           if (S.view === 'suggest') { const t = $('#wiz-more') || $('#view-suggest .wiz-opt'); if (t) t.focus(); }
-        });
+        }, next);
       }
       catch (x) { err.textContent = x.message; }
     });
@@ -2364,11 +2513,12 @@ function formShell(kicker, title, intro, build, onSubmit, submitLabel) {
   });
 }
 /* after "Add to my changes": say plainly that nothing is sent yet, and offer the two ways on */
-function showAdded(keepBrowsing) {
+function showAdded(keepBrowsing, next) {
   const n = S.basket.length;
   drawer(h('span', { text: 'Added' }), body => {
     body.append(h('h2', { id: 'dr-h', text: S.lastAdded || 'Added to your changes' }),
       h('p', { text: `Nothing is sent yet. You now have ${n} change${n > 1 ? 's' : ''} waiting. Add more if you like, then send them all in one go.` }),
+      next instanceof Node ? next : null,
       h('div', { class: 'actions' },
         h('button', { class: 'btn primary', type: 'button', text: 'Review and send →', onclick: openSuggest }),
         h('button', { class: 'btn', type: 'button', text: 'Add another change', onclick: keepBrowsing })));
@@ -2463,8 +2613,12 @@ function cellPickers(form, o, idp) {
   const fill = () => {
     const t = S.eff.tables[tSel.value];
     rSel.textContent = ''; cSel.textContent = '';
-    t.groups.forEach(g => rSel.append(h('optgroup', { label: g.label || '—' }, g.rows.map(r => h('option', { value: r.id, text: (r.code ? r.code + ' ' : '') + r.name, selected: r.id === o.row })))));
-    t.cols.forEach(c => cSel.append(h('option', { value: c.id, text: `${c.stage} · ${c.name}`, selected: c.id === o.col })));
+    // what is not known stays to choose: a row or column picked by default would place the paper without anyone deciding it
+    const hasRow = !!o.row && t.groups.some(g => g.rows.some(r => r.id === o.row)), hasCol = !!o.col && t.cols.some(c => c.id === o.col);
+    if (!hasRow) rSel.append(h('option', { value: '', text: 'Choose a row…', selected: true }));
+    if (!hasCol) cSel.append(h('option', { value: '', text: 'Choose a column…', selected: true }));
+    t.groups.forEach(g => rSel.append(h('optgroup', { label: g.label || '—' }, g.rows.map(r => h('option', { value: r.id, text: (r.code ? r.code + ' ' : '') + r.name, selected: hasRow && r.id === o.row })))));
+    t.cols.forEach(c => cSel.append(h('option', { value: c.id, text: `${c.stage} · ${c.name}`, selected: hasCol && c.id === o.col })));
   };
   tSel.onchange = () => { o.row = o.col = null; fill(); };
   fill();
@@ -2503,7 +2657,9 @@ function formPlacement(o) {
         addChanges([ch]);
       } else {
         const pid = form._picker.read(); if (!pid) throw new Error('Pick a paper from the list.');
-        addChanges([Object.assign({ type: 'placement.add', paper: pid, main, why }, form._cells())]);
+        const c = form._cells();
+        if (!c.row || !c.col) throw new Error(`Choose the ${!c.row && !c.col ? 'row and the column' : !c.row ? 'row' : 'column'} of the cell.`);
+        addChanges([Object.assign({ type: 'placement.add', paper: pid, main, why }, c)]);
       }
     });
 }
@@ -2531,29 +2687,76 @@ function formNode(id) {
     else addChanges([{ type: 'node.update', id, text: $('#en-text', form).value }]);
   });
 }
-function formAddNode(near) {
-  const n = S.I.nodes[near];
-  const isCol = n.kind === 'chain';
-  formShell('Add to the map', 'Add a question or idea', isCol ? `It will start a new branch in the column “${clipText(nodeTitle(n), 40)}”.` : `It will appear below “${clipText(nodeTitle(n), 60)}”, inside its branch.`, form => {
-    form.append(h('div', { class: 'field' }, h('span', { class: 'lab', text: 'Kind of box' }), h('div', { class: 'radio-row' },
-      h('label', null, h('input', { type: 'radio', name: 'an-kind', value: 'question', checked: true }), 'Open question or idea'),
-      h('label', null, h('input', { type: 'radio', name: 'an-kind', value: 'concept' }), 'Concept'))));
-    if (isCol) form.append(h('div', { class: 'field' }, h('span', { class: 'lab', text: 'Lane' }), h('div', { class: 'radio-row' },
-      S.data.map.lanes.filter(l => !l.span).map((l, i) => h('label', null, h('input', { type: 'radio', name: 'an-lane', value: l.id, checked: i === 0 }), l.label)))));
-    form.append(field('Text', h('textarea', { id: 'an-text', rows: '4', maxlength: String(CORE.LIMITS.nodeText) })));
+/* A new box below `near` (or, under a column header, a new branch of that column): a sub-section that groups papers and
+   questions, or an open question. A sub-section is a name, with an optional line shown under it on the map. */
+const SECTION_NAME_MAX = 100, SECTION_DESC_MAX = 300;
+function formAddNode(near, kind) {
+  const n = effNode(near);
+  if (!canHoldBoxes(n)) { closeDrawer(true); return; }
+  const isCol = n.kind === 'chain', isSection = kind !== 'question';
+  const here = clipText(nodeTitle(n), 60);
+  const title = isSection ? (isCol ? 'Add a section' : 'Add a sub-section') : 'Add a question or idea';
+  // filling it right away needs map boxes left in this suggestion
+  const fillLater = mapBoxesLeft() <= 1 ? ` It uses the last map box this suggestion can hold: papers can go into it in a later suggestion, once it is published.` : ' You can add papers to it right after.';
+  const intro = isSection
+    ? (isCol ? `A new branch in the column “${here}”, to group papers and questions on a topic the map does not cover yet.` : `A new box below “${here}”, to group papers and questions on a narrower topic.`) + fillLater
+    : (isCol ? `It will start a new branch in the column “${here}”.` : `It will appear below “${here}”, inside its branch.`);
+  formShell('Add to the map', title, intro, form => {
+    if (isCol) form.append(h('div', { class: 'field' }, h('span', { class: 'lab', id: 'an-lane-l', text: 'Lane' }), h('div', { class: 'radio-row', role: 'radiogroup', 'aria-labelledby': 'an-lane-l' },
+      S.eff.map.lanes.filter(l => !l.span).map((l, i) => h('label', null, h('input', { type: 'radio', name: 'an-lane', value: l.id, checked: i === 0 }), l.label)))));
+    if (isSection) {
+      form.append(field('Name', h('input', { id: 'an-name', type: 'text', maxlength: String(SECTION_NAME_MAX), autocomplete: 'off' }), 'A few words, like the other boxes of the map.'));
+      form.append(field('Short description (optional)', h('input', { id: 'an-desc', type: 'text', maxlength: String(SECTION_DESC_MAX), autocomplete: 'off' }), 'Shown in smaller type under the name.'));
+    } else form.append(field('Text', h('textarea', { id: 'an-text', rows: '4', maxlength: String(CORE.LIMITS.nodeText) })));
   }, form => {
-    const ch = { type: 'node.add', near, kind: $('input[name=an-kind]:checked', form).value, text: $('#an-text', form).value };
+    // a sub-section 5 levels deep could hold nothing (core.js refuses boxes below that depth)
+    if (isSection && effDepth(near) >= 4) throw new Error('This box is already deep in its branch: a sub-section here could not hold papers. Add it to a box higher up.');
+    checkBoxBudget(near, false);
+    const ch = { type: 'node.add', near, kind: isSection ? 'concept' : 'question' };
+    if (isSection) {
+      // cleaned as core.js stores it (no invisible or control characters), so the new box can be found right after
+      const clean = s => s.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F\u200B\u200E\u200F\u202A-\u202E\u2028\u2029\u2060-\u2064\u2066-\u2069\uFEFF]/g, '').replace(/\s+/g, ' ').trim();
+      const name = clean($('#an-name', form).value), desc = clean($('#an-desc', form).value);
+      if (!name) throw new Error(`Give the ${isCol ? 'section' : 'sub-section'} a name.`);
+      ch.text = desc ? name + '\n' + desc : name;
+    } else ch.text = $('#an-text', form).value;
     if (isCol) ch.lane = $('input[name=an-lane]:checked', form).value;
-    addChanges([ch]);
+    if (isSection) {
+      // two boxes with the same name side by side would only confuse readers
+      const M = effMap(), key = s => firstLine(s).toLowerCase();
+      const sibs = isCol ? S.eff.map.nodes.filter(x => !x.parent && x.lane === ch.lane && x.column === (S.eff.map.columns.find(c => c.node === near) || {}).id) : (M.kids.get(near) || []);
+      const same = sibs.find(x => x.kind !== 'paper' && x.kind !== 'note' && key(x.text || '') === key(ch.text));
+      if (same) throw new Error(`“${firstLine(same.text)}” is already ${isCol ? 'in this column' : `below “${here}”`}${S.base.map.nodes.some(x => x.id === same.id) ? '' : ', in your changes'}. Add to it instead: open it on the map${S.base.map.nodes.some(x => x.id === same.id) ? '' : ' with “Show my changes”'}.`);
+    }
+    const before = new Set(S.eff.map.nodes.map(x => x.id));
+    addChanges([ch], isSection ? `${isCol ? 'Section' : 'Sub-section'} “${clipText(firstLine(ch.text), 50)}” added to your changes` : '');
+    if (!isSection) return null;
+    // offer to fill it straight away: the new box exists in the visitor's version of the map
+    const colId = isCol ? (S.eff.map.columns.find(c => c.node === near) || {}).id : null;
+    const made = S.eff.map.nodes.filter(x => !before.has(x.id) && x.kind === 'concept' && x.text === ch.text
+      && (isCol ? !x.parent && x.lane === ch.lane && x.column === colId : x.parent === near)).pop();
+    return made && effDepth(made.id) < 5 ? addedSectionNext(made) : null;
   });
 }
+/* after adding a sub-section: what to put in it, and where to see it */
+function addedSectionNext(made) {
+  const actions = addBelowActions(made, true); // the "Added" panel has its own "Review and send"
+  actions.classList.add('next');
+  // with the other buttons, before the closing note on how many boxes are left, if there is one
+  const see = h('button', { class: 'btn ghost', type: 'button', text: 'See it on the map', onclick: () => { if (!S.preview) setPreview(true); closeDrawer(true); goNode(made.id); } });
+  const last = actions.lastElementChild;
+  if (last && last.classList.contains('hint')) actions.insertBefore(see, last); else actions.append(see);
+  return actions;
+}
 function formAttachPaper(near) {
-  const n = S.I.nodes[near];
-  formShell('Add to the map', 'Attach a paper to this box', `The paper box will appear below “${clipText(nodeTitle(n), 60)}”.`, form => {
+  const n = effNode(near);
+  if (!canHoldBoxes(n)) { closeDrawer(true); return; }
+  formShell('Add to the map', 'Attach a listed paper', `A paper already in the list gets a box below “${clipText(nodeTitle(n), 60)}”. For a paper that is not listed yet, use “Add a new paper”.`, form => {
     const pk = paperPicker('ap-paper', null, 'paper^' + near); form.append(pk); form._picker = pk;
     form.append(field('One-line summary for the map', h('textarea', { id: 'ap-text', rows: '3', maxlength: String(CORE.LIMITS.nodeText) }), 'What this paper shows for this box, with its key number.'));
   }, form => {
     const pid = form._picker.read(); if (!pid) throw new Error('Pick a paper from the list.');
+    checkBoxBudget(near, false);
     addChanges([{ type: 'node.add', near, kind: 'paper', paper: pid, text: $('#ap-text', form).value }]);
   });
 }
@@ -2563,31 +2766,72 @@ function formComment(target) {
   }, form => addChanges([{ type: 'comment', target, text: $('#cm-text', form).value }]));
 }
 function panelComment() { formComment('general'); }
+/* "Add a paper". spec says where it was opened from: 'paper' (no place), 'paper@m1:row|col' (a matrix cell) or
+   'paper^<box id>' (a box of the map). That place fills in both placements: the box gives the matrix cell it is linked
+   to, the cell gives the box linked to it when there is exactly one. A summary at the top says where the paper will go. */
 function panelNewPaper(spec) {
-  const m = /@(m[123]):(.+)\|(.+)$/.exec(spec || '');
-  const pre = m ? { table: m[1], row: m[2], col: m[3] } : {};
-  const nb = /\^([^@^]+)$/.exec(spec || ''); // opened from a map box: place the paper below it
-  const preNode = nb && S.eff.map.nodes.some(x => x.id === nb[1]) ? nb[1] : '';
-  const intro = 'Fill in what you know. The coding follows the definitions at the bottom of each matrix page. Once published, the paper appears in the list of papers and in the Awesome list on GitHub, and on the map and in the matrices where you place it below.'
-    + (preNode ? ` It will appear on the map below “${clipText(nodeTitle(S.eff.map.nodes.find(x => x.id === preNode)), 60)}”.` : '');
+  const m = /^paper@(m[123]):([^|]+)\|(.+)$/.exec(spec || '');
+  const nb = /^paper\^(.+)$/.exec(spec || '');
+  const fromBox = nb && effNode(nb[1]);
+  const preNode = fromBox && canHoldBoxes(fromBox) && fromBox.kind !== 'chain' && effDepth(fromBox.id) < 5 ? fromBox.id : '';
+  const realCell = c => c && own(S.eff.tables, c.table) && !S.eff.tables[c.table].derivedFrom ? c : null;
+  const pre = m ? realCell({ table: m[1], row: m[2], col: m[3] }) : preNode ? cellFromBox(preNode) : null;
+  const linked = m ? boxesForCell(m[1], m[2], m[3]) : { exact: [], near: [] };
+  // a suggestion holds at most 5 new map boxes: past that, nothing is pre-selected and the form says why
+  const mapBox = mapBoxesLeft() <= 0 ? '' : preNode || (linked.exact.length === 1 ? linked.exact[0] : '');
+  const cellPartly = !!(pre && (pre.row || pre.col));
+  const intro = 'Fill in what you know. The coding follows the definitions at the bottom of each matrix page. Once published, the paper appears in the list of papers and in the Awesome list on GitHub.';
   formShell('Add a paper', 'Add a paper', intro, form => {
+    // where it goes: filled in from where the visitor clicked, kept up to date while they change it below
+    const where = h('ul', { class: 'where-l' });
+    if (pre || preNode || mapBox) form.append(h('div', { class: 'where' }, h('p', { class: 'dg-l', text: 'Where it will go' }), where,
+      h('p', { class: 'hint', text: 'Filled in from where you clicked. You can change it at the bottom of this form.' })));
     paperFields(form, { status: 'preprint', proximity: 2, evidence: 'testbed', verdict: 'works' }, 'np-');
     form.append(h('p', { class: 'dg-l', text: 'Place it in a matrix (optional)' }));
-    form._cells = cellPickers(form, pre, 'np-');
-    form.append(h('label', { class: 'toggle' }, h('input', { type: 'checkbox', id: 'np-place', checked: !!m }), 'Add this placement'));
-    form.append(field('Why it belongs in that cell', h('textarea', { id: 'np-why', rows: '2', maxlength: String(CORE.LIMITS.why) })));
-    const par = new Map(S.eff.map.nodes.map(x => [x.id, x.parent]));
-    const depthOf = id => { let k = 0, q = par.get(id); while (q && k < 9) { q = par.get(q); k++; } return k; };
-    const nodes = S.eff.map.nodes.filter(x => ['concept', 'question', 'group', 'framing'].includes(x.kind) && depthOf(x.id) < 5).sort((a, b) => cmp(nodeTitle(a), nodeTitle(b)));
+    form._cells = cellPickers(form, pre ? Object.assign({}, pre) : {}, 'np-');
+    form.append(h('label', { class: 'toggle' }, h('input', { type: 'checkbox', id: 'np-place', checked: cellPartly }), 'Add this placement'));
+    form.append(field('Why it belongs in that cell', h('textarea', { id: 'np-why', rows: '2', maxlength: String(CORE.LIMITS.why) }), 'One or two sentences, with a number or mechanism from the paper.'));
     form.append(h('p', { class: 'dg-l', text: 'Show it on the map (optional)' }));
-    form.append(field('Place it below the box', h('select', { id: 'np-node' }, h('option', { value: '', text: 'Not on the map' }), nodes.map(x => h('option', { value: x.id, text: clipText(nodeTitle(x), 60), selected: x.id === preNode })))));
-    form.append(field('One-line summary for the map', h('textarea', { id: 'np-map', rows: '2', maxlength: String(CORE.LIMITS.nodeText) })));
+    const groups = [{ label: 'Linked to this cell', ids: linked.exact }, { label: 'Linked to its row or column', ids: linked.near }];
+    const ne = linked.exact.length, nn = linked.near.length;
+    const linkHint = ne && nn ? 'The boxes linked to this matrix cell, then to its row or column, come first.'
+      : ne > 1 ? 'The boxes linked to this matrix cell come first.'
+      : nn ? 'The boxes linked to the row or the column of this cell come first.' : '';
+    // the hint is kept up to date by sayWhere: the budget can change while the form is open (another tab)
+    form.append(field('Place it below the box', boxSelect('np-node', mapBox, groups), ' '));
+    const boxHint = $('#np-node-hint', form);
+    form.append(field('One-line summary for the map', h('textarea', { id: 'np-map', rows: '2', maxlength: String(CORE.LIMITS.nodeText) }), 'What this paper shows for that box. Left empty, “What it does” is used.'));
+    // choosing a cell or writing why it belongs there means the visitor wants the placement
+    const tick = () => { const p = $('#np-place', form); if (!p.checked) { p.checked = true; sayWhere(); } };
+    ['#np-r', '#np-c'].forEach(s => $(s, form).addEventListener('change', e => { if (e.target.value) tick(); }));
+    $('#np-why', form).addEventListener('input', e => { if (e.target.value.trim()) tick(); });
+    const sayWhere = () => {
+      where.textContent = '';
+      const box = $('#np-node', form).value, bn = box && effNode(box), c = form._cells(), full = mapBoxesLeft() <= 0;
+      boxHint.textContent = full ? `${boxBudgetText()}: ${box ? 'choose “Not on the map” for this paper.' : 'this paper cannot go on the map in this suggestion.'} ${budgetWayOut(preNode)}` : linkHint;
+      boxHint.hidden = !boxHint.textContent;
+      where.append(h('li', null, bn ? `On the map: below “${clipText(nodeTitle(bn), 60)}” (${boxPlace(box) || 'above the lanes'})`
+        : box ? 'On the map: that box is no longer in your changes, choose another'
+        : full && preNode ? `On the map: not placed. ${boxBudgetText()}` : 'On the map: not placed (optional)'));
+      if (!$('#np-place', form).checked) where.append(h('li', null, 'In a matrix: not placed (optional)'));
+      else if (c.row && c.col) where.append(h('li', null, `In a matrix: ${CORE.cellLabel(S.eff, c.table, c.row, c.col)}`));
+      else {
+        const cd = c.col && S.I.cols[c.table] && S.I.cols[c.table][c.col];
+        where.append(h('li', null, `In ${tableName(c.table)}: ${c.col ? `column “${cd ? cd.stage + ' · ' + cd.name : colLabel(c.table, c.col)}”` : c.row ? `row “${rowLabel(c.table, c.row)}”` : 'a cell'}, choose the ${!c.row && !c.col ? 'row and the column' : !c.row ? 'row' : 'column'} at the bottom of this form`));
+      }
+    };
+    form.addEventListener('change', sayWhere);
+    sayWhere();
   }, form => {
     const tmp = 'new:' + (++S.tmpN);
     const changes = [{ type: 'paper.add', tmp, paper: readPaper(form, 'np-') }];
-    if ($('#np-place', form).checked) changes.push(Object.assign({ type: 'placement.add', paper: tmp, main: true, why: $('#np-why', form).value }, form._cells()));
+    if ($('#np-place', form).checked) {
+      const c = form._cells();
+      if (!c.row || !c.col) throw new Error(`Choose the ${!c.row && !c.col ? 'row and the column' : !c.row ? 'row' : 'column'} of the matrix cell, or untick “Add this placement”.`);
+      changes.push(Object.assign({ type: 'placement.add', paper: tmp, main: true, why: $('#np-why', form).value }, c));
+    }
     const near = $('#np-node', form).value;
-    if (near) changes.push({ type: 'node.add', near, kind: 'paper', paper: tmp, text: $('#np-map', form).value || readPaper(form, 'np-').does });
+    if (near) { checkBoxBudget(near, true); changes.push({ type: 'node.add', near, kind: 'paper', paper: tmp, text: $('#np-map', form).value || readPaper(form, 'np-').does }); }
     addChanges(changes, 'New paper added to your changes');
   });
 }
@@ -2685,6 +2929,8 @@ function renderSuggest() {
   const byChange = {};
   (S.log || []).forEach(l => (byChange[l.i] ||= []).push(l));
   const actionOf = (b, i) => (byChange[i] && byChange[i][0].action) || CHANGE_NAMES[b.change.type] || b.change.type;
+  // the map calls a new concept box a (sub-)section, as its buttons do
+  const targetOf = (b, l) => b.change.type === 'node.add' && l.target === 'concept' ? ((effNode(b.change.near) || {}).kind === 'chain' ? 'section' : 'sub-section') : l.target;
 
   if (S.sgStep === 1) {
     const opt = (head, sub, run, id) => h('button', { class: 'wiz-opt', type: 'button', id, 'aria-expanded': id ? String(!!S.sgHelp) : null, 'aria-controls': id ? 'wiz-help' : null, onclick: run },
@@ -2700,7 +2946,7 @@ function renderSuggest() {
       h('p', { text: 'Open what you want to change, then click “Suggest an edit” in the panel that opens:' }),
       h('ul', null,
         h('li', { text: 'a paper: in the Papers list, or click it on the map or in a matrix;' }),
-        h('li', { text: 'a box of the map: click it on the Map;' }),
+        h('li', { text: 'a box of the map: click it on the Map. Its panel also adds a paper, a sub-section or a question below it;' }),
         h('li', { text: 'a paper in a matrix cell: click the cell, then “edit…” next to the paper;' }),
         h('li', { text: 'a heading or a text: click the pen icon next to it.' })),
       h('p', { text: 'After “Add to my changes”, choose “Review and send” to come back here.' }),
@@ -2724,7 +2970,7 @@ function renderSuggest() {
           h('div', { class: 'h' }, h('span', { class: 'a', text: actionOf(b, i) }), h('button', { class: 'rm', type: 'button', text: 'Remove', 'aria-label': `Remove change ${i + 1}`, onclick: () => removeChange(i) })),
           i === S.badIndex ? h('p', { class: 'err', text: S.basketError }) : null,
           (byChange[i] || []).map(l => h('div', { class: 'diff' },
-            h('span', { class: 'tg', text: l.target }), l.field ? h('span', { class: 'f', text: l.field }) : null,
+            h('span', { class: 'tg', text: targetOf(b, l) }), l.field ? h('span', { class: 'f', text: l.field }) : null,
             l.before ? h('div', { class: 'b', text: show(l.before, l.markup) }) : null, l.after ? h('div', { class: 'af', text: show(l.after, l.markup) }) : null))))),
         h('label', { class: 'toggle' }, h('input', { type: 'checkbox', id: 'sg-preview', checked: S.preview, onchange: e => { setPreview(e.target.checked); const c = $('#sg-preview'); if (c) c.focus(); } }), 'Show my changes on the map and matrices'),
         next,
@@ -2764,7 +3010,7 @@ function renderSuggest() {
     put(title('Check and send'),
       h('div', { class: 'wiz-sum' },
         h('div', { class: 'wiz-sum-h' }, h('span', { class: 'dg-l', text: `Your changes (${n})` }), edit(1, 'your changes')),
-        h('ol', { class: 'wiz-list' }, S.basket.map((b, i) => h('li', null, h('b', { text: actionOf(b, i) }), (byChange[i] && byChange[i][0].target) ? ` · ${byChange[i][0].target}` : ''))),
+        h('ol', { class: 'wiz-list' }, S.basket.map((b, i) => h('li', null, h('b', { text: actionOf(b, i) }), (byChange[i] && byChange[i][0].target) ? ` · ${targetOf(b, byChange[i][0])}` : ''))),
         h('div', { class: 'wiz-sum-h' }, h('span', { class: 'dg-l', text: 'Your reason' }), edit(2, 'your reason')),
         h('p', { class: 'quote', text: reason }),
         h('div', { class: 'wiz-sum-h' }, h('span', { class: 'sec-p', text: name ? `Shown with your name: ${name}` : 'Your name: not given (you stay anonymous)' }), edit(2, 'your name'))));
