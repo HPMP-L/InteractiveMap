@@ -216,6 +216,9 @@ point 4) si ce n'est pas déjà fait, puis fermez cette pull request de test san
 - Deux suggestions qui touchent la même ligne peuvent entrer en conflit : GitHub propose alors **Resolve conflicts** dans le navigateur.
 - Une suggestion qui ajoute une boîte à la carte ne contient pas de coordonnées : elle dit seulement sous quelle boîte la
   placer, et la page la met en place elle-même, sans chevauchement.
+- Les visiteurs peuvent créer une **sous-partie** (bouton **Add a sub-section** d'une boîte, ou **Add a section** en tête de
+  colonne) et y ranger des articles dans la même suggestion. Dans la description, elle apparaît comme « Add to map ·
+  concept ». Avant de fusionner, vérifiez que son nom est clair et qu'elle ne double pas une boîte voisine.
 - Vous pouvez aussi modifier `data.json` vous-même (voir « Modifier la carte à la main » plus bas). Remettez-le ensuite au
   format attendu avec `node tools/check-data.js --fix`, ou sans Node avec `py tools/format_data.py` (même résultat), puis
   régénérez `README.md` (voir « La liste awesome » plus bas).
@@ -322,7 +325,8 @@ boîte en cause. Sans Node, ouvrez `tools/check-data-test.html` (voir ci-dessous
 Lancez `py -m http.server` à la racine du dépôt, puis ouvrez :
 
 - <http://localhost:8000/tools/worker-test.html> : fait tourner `worker/worker.js` contre un GitHub simulé
-  (110 vérifications, dont les tentatives d'abus, l'anti-spam, le contrôle du jeton et la liste awesome). La première ligne
+  (120 vérifications, dont les tentatives d'abus, l'anti-spam, le contrôle du jeton, la liste awesome et une sous-partie
+  envoyée avec un article dedans). La première ligne
   doit indiquer `0 failed`.
 - <http://localhost:8000/tools/check-data-test.html> : lance la vérification de `data.json` dans le navigateur, puis sur une
   copie volontairement cassée, et sur un `README.md` modifié à la main, pour montrer qu'elle détecte bien les erreurs.
