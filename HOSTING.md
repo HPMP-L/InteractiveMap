@@ -287,7 +287,7 @@ vérifiez : `node tools/check-data.js` vérifie toutes ces règles et indique la
 Lancez `py -m http.server` à la racine du dépôt, puis ouvrez :
 
 - <http://localhost:8000/tools/worker-test.html> : fait tourner `worker/worker.js` contre un GitHub simulé
-  (99 vérifications, dont les tentatives d'abus, l'anti-spam et le contrôle du jeton). La première ligne doit indiquer `0 failed`.
+  (106 vérifications, dont les tentatives d'abus, l'anti-spam et le contrôle du jeton). La première ligne doit indiquer `0 failed`.
 - <http://localhost:8000/tools/check-data-test.html> : lance la vérification de `data.json` dans le navigateur, puis sur une
   copie volontairement cassée pour montrer qu'elle détecte bien les erreurs.
 
