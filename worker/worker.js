@@ -1,4 +1,4 @@
-// Suggestion endpoint for the W→T→R→C research map.
+// Suggestion endpoint for Awesome Agentic Capacity Planning (the W→T→R→C research map).
 // Receives anonymous suggestions from the page, applies them to data.json and opens a pull request.
 // Runs on Cloudflare Workers (free plan). Setup: see HOSTING.md.
 //
@@ -396,15 +396,172 @@ const CORE = (() => {
     return { data: d, log, ids: Object.assign({}, tmp) };
   }
 
+  /* ---------- README: the whole list as an "awesome" Markdown page ----------
+     Generated from data.json: by the worker in every suggestion that changes the data, by tools/readme.html, and checked
+     by tools/check-data.js. Text that comes from data.json is written as plain text: no link, image, HTML, heading, list
+     or math can come from it. Only paper links (http/https, already checked) and the site's own address become links.
+     The README has no totals: each paper or question is one line of its own, so two suggestions merged one after the
+     other still give exactly the README of the merged data. */
+  // The public site and its repository. Kept here, not in data.json, so a suggestion cannot change where the list points.
+  const SITE = 'https://hpmp-l.github.io/InteractiveMap/';
+  const REPO = 'HPMP-L/InteractiveMap';
+  const ZW = '\u200b';
+  const STATUS_MARK = { published: '🟢', 'lab-preprint': '🔵', preprint: '🟠', workshop: '🟣' };
+  function mdText(s) {
+    return String(s == null ? '' : s).replace(/\s+/g, ' ').trim()
+      .replace(/&/g, '&amp;')
+      .replace(/[\\`*_{}[\]()<>#+!|~$]/g, c => '\\' + c)
+      .replace(/^([-=])/, '\\$1').replace(/^(\d{1,9})([.)])/, '$1\\$2') // never the start of a list or a heading underline
+      .replace(/:\/\//g, ':' + ZW + '//').replace(/www\./gi, m => m.slice(0, 3) + ZW + '.') // no auto-links
+      .replace(/@/g, '@' + ZW);
+  }
+  const mdHref = u => (/^https?:\/\/\S+$/.test(String(u || ''))
+    ? String(u).replace(/[()<>"'\\]/g, c => '%' + c.charCodeAt(0).toString(16).toUpperCase().padStart(2, '0')) : '');
+  function firstSentence(s) {
+    const t = String(s || '').replace(/\s+/g, ' ').trim();
+    const m = /^(.{20,220}?[.!?])(?:\s|$)/u.exec(t);
+    const one = m ? m[1] : t;
+    const cps = Array.from(one); // cut on characters, never inside one
+    return cps.length > 220 ? cps.slice(0, 217).join('').replace(/\s+\S*$/u, '') + '…' : one;
+  }
+  // the anchors GitHub gives to headings, counted over every heading in page order: lower case; letters, marks, digits,
+  // "_", "-" and spaces kept; each space becomes a hyphen; repeats get -1, -2…
+  function slugger() {
+    const seen = {};
+    return text => {
+      const s = String(text).replace(/\s+/g, ' ').trim().toLowerCase().replace(/[^\p{L}\p{M}\p{N}\p{Pc} -]/gu, '').replace(/ /g, '-');
+      const k = seen[s] || 0; seen[s] = k + 1;
+      return k ? `${s}-${k}` : s;
+    };
+  }
+  function readme(d) {
+    const meta = d.meta || {};
+    const site = SITE, add = `${SITE}#suggest/new/paper`;
+    const name = String(meta.title || 'Awesome list').replace(/\s+/g, ' ').trim();
+    const papers = d.papers || {};
+    const m1 = (d.tables || {}).m1 || {};
+    const cols = m1.cols || [], groups = m1.groups || [];
+    const vocab = (list, key) => { const v = ((d.vocab || {})[list] || []).find(x => x.key === key); return v ? v.label : String(key); };
+    const statusRank = s => { const i = ['published', 'lab-preprint', 'preprint', 'workshop'].indexOf(s); return i < 0 ? 9 : i; };
+    const link = (text, url) => { const href = mdHref(url); return href ? `[${text}](${href})` : text; };
+    const onSite = (hash, text) => `[${text}](${site}#${hash})`;
+    const slug = slugger();
+    const titleLine = `🛰️ ${name} Awesome`; // the H1 as GitHub reads it: emoji, name, then the badge's alt text
+    slug(titleLine); slug('Contents');
+    const body = [], toc = [];
+    // a heading: written once, its anchor counted in page order, and listed in the contents when it is a section
+    const head = (level, text, inToc) => { const a = slug(text); body.push(`${'#'.repeat(level)} ${mdText(text)}`, ''); if (inToc) toc.push([text, a]); };
+
+    // where each paper sits: its main cell of the first matrix (kind of approach × link of the chain)
+    const rowGroup = {}, rowName = {};
+    groups.forEach((g, gi) => (g.rows || []).forEach(r => { rowGroup[r.id] = gi; rowName[r.id] = r.name; }));
+    const sections = cols.map(c => ({ c, parts: groups.map(g => ({ g, items: [] })) }));
+    const placed = new Set();
+    for (const [key, items] of Object.entries(m1.cells || {})) {
+      const [row, col] = key.split('|');
+      const si = cols.findIndex(c => c.id === col), gi = rowGroup[row];
+      for (const x of items || []) {
+        if (!x || !x.main || !own(papers, x.p) || placed.has(x.p) || si < 0 || gi == null) continue;
+        placed.add(x.p); sections[si].parts[gi].items.push({ id: x.p, row });
+      }
+    }
+    const other = Object.keys(papers).filter(id => !placed.has(id)).map(id => ({ id, row: null }));
+    const order = (a, b) => {
+      const p = papers[a.id], q = papers[b.id];
+      return (q.proximity - p.proximity) || (statusRank(p.status) - statusRank(q.status))
+        || (String(p.short) < String(q.short) ? -1 : String(p.short) > String(q.short) ? 1 : 0) || (a.id < b.id ? -1 : 1);
+    };
+    const entry = ({ id, row }) => {
+      const p = papers[id];
+      const marks = [STATUS_MARK[p.status] || '', p.proximity === 3 ? '⭐' : ''].filter(Boolean).join(' ');
+      const venue = mdText(p.venue), does = mdText(firstSentence(p.does));
+      const sameName = String(p.title || '').trim().toLowerCase() === String(p.short || '').trim().toLowerCase();
+      const more = [row ? `_${mdText(rowName[row])}_` : '', onSite('papers/paper/' + encodeURIComponent(id), 'map ↗')].filter(Boolean).join(' · ');
+      return `- **${link(mdText(p.short), p.url)}** ${marks}${sameName ? '' : ' ' + mdText(p.title)}${venue ? ` *(${venue})*` : ''}${does ? ` — ${does}` : ''} · ${more}`;
+    };
+
+    // open problems: the questions of the map, with where they sit
+    const nodes = ((d.map || {}).nodes) || [];
+    const byId = new Map(nodes.map(n => [n.id, n]));
+    const lanes = ((d.map || {}).lanes) || [];
+    const firstLine = n => String(n.text || n.title || '').split('\n')[0];
+    const rootOf = n => { let q = n; const seen = new Set(); while (q && q.parent && byId.has(q.parent) && !seen.has(q.id)) { seen.add(q.id); q = byId.get(q.parent); } return q; };
+    const trail = n => {
+      const names = []; const seen = new Set();
+      let q = n.parent && byId.get(n.parent);
+      while (q && !seen.has(q.id)) { seen.add(q.id); if (q.kind !== 'chain') names.unshift(firstLine(q)); q = q.parent && byId.get(q.parent); }
+      return names;
+    };
+    const questions = nodes.filter(n => n.kind === 'question');
+    const problem = n => {
+      const where = trail(n);
+      return `- ${mdText(n.text)}${where.length ? ` — _${where.map(mdText).join(' › ')}_` : ''} · ${onSite('map/node/' + encodeURIComponent(n.id), 'map ↗')}`;
+    };
+
+    head(2, 'How to read this list', true);
+    body.push('Each link of the chain has its own section, split by what the work does: measure, predict, decide, model or reproduce. Within a part, the papers closest to capacity planning come first.', '');
+    body.push(Object.keys(STATUS_MARK).map(k => `${STATUS_MARK[k]} ${mdText(vocab('status', k))}`).join(' · ') + ` · ⭐ ${mdText(vocab('proximity', 3))}`, '');
+    body.push('**map ↗** opens the paper on the interactive map, with its full coding: key result, contribution and gap, limitation.', '');
+    sections.forEach(s => {
+      if (!s.parts.some(p => p.items.length)) return;
+      head(2, s.c.stage ? `${s.c.name} (${s.c.stage})` : String(s.c.name), true);
+      if (s.c.sub) body.push(mdText(s.c.sub), '');
+      s.parts.forEach(p => {
+        if (!p.items.length) return;
+        head(3, String(p.g.label));
+        p.items.slice().sort(order).forEach(it => body.push(entry(it)));
+        body.push('');
+      });
+    });
+    if (other.length) { head(2, 'Other papers', true); other.sort(order).forEach(it => body.push(entry(it))); body.push(''); }
+    if (questions.length) {
+      head(2, 'Open problems', true);
+      body.push(`Questions the map raises and no listed paper answers yet. **Working on one of them? [Add your paper](${add}).**`, '');
+      lanes.forEach(l => {
+        const qs = questions.filter(n => (rootOf(n) || {}).lane === l.id);
+        if (!qs.length) return;
+        head(3, String(l.label)); qs.forEach(n => body.push(problem(n))); body.push('');
+      });
+      const loose = questions.filter(n => !lanes.some(l => l.id === (rootOf(n) || {}).lane));
+      if (loose.length) { head(3, 'Other'); loose.forEach(n => body.push(problem(n))); body.push(''); }
+    }
+    head(2, 'Contributing', true);
+    body.push('**Your paper, system, trace or benchmark belongs here?** Add it in two minutes, without a GitHub account:', '');
+    body.push(`1. Open [Add your paper](${add}) on the interactive map.`,
+      '2. Fill in its card and, if you like, its place in a matrix and on the map.',
+      '3. Say why in one sentence and send. Your suggestion becomes a pull request; once the maintainer merges it, it appears in this list and on the site.', '');
+    body.push('You can correct or complete any entry the same way, with **Suggest an edit** on its card, or leave a comment.', '');
+    body.push('With a GitHub account, you can also edit [`data.json`](data.json) and open a pull request. This README is generated from `data.json`: do not edit it by hand.', '');
+    body.push('**What fits:** research and systems on agent workloads and trajectories, the inference and tool resources agents use, the orchestration of long-running agents (state, messages, sleep and wake), and capacity planning (placement, sizing, SLOs), including traces, benchmarks and simulators.', '');
+    head(2, 'Show that your work is listed', true);
+    body.push('If your paper or system is in this list, you can add this badge to your README or project page. On the site, each paper\'s card gives the same badge with a link to that card.', '');
+    const badgeName = name.replace(/[[\]`]/g, '');
+    body.push(`[![Mentioned in ${mdText(name)}](https://awesome.re/mentioned-badge.svg)](${site})`, '');
+    body.push('```md', `[![Mentioned in ${badgeName}](https://awesome.re/mentioned-badge.svg)](${site})`, '```', '');
+    head(2, 'About this list', true);
+    body.push(`It started as a literature review on predicting the infrastructure demand of LLM agents. The [interactive map](${site}) shows how the papers connect, and its three matrices code every paper. How the site and its suggestion pipeline work: [DEVELOPING.md](DEVELOPING.md). Setting it up: [HOSTING.md](HOSTING.md).`, '');
+
+    const out = [];
+    out.push('<!-- Generated from data.json by CORE.readme (core.js). Do not edit this file by hand: change data.json, or use the site, and it follows. -->', '');
+    out.push(`# 🛰️ ${mdText(name)} [![Awesome](https://awesome.re/badge.svg)](https://awesome.re)`, '');
+    if (meta.subtitle) out.push(`> ${mdText(meta.subtitle)}`, '');
+    out.push(`[🗺️ **Explore the interactive map**](${site}) · [➕ **Add your paper**](${add}) (no GitHub account needed) · [✏️ Suggest a change](${site}#suggest)`, '');
+    out.push('A curated, living list of papers on what LLM agents demand from infrastructure, organized along the chain **Workload → Trajectory → Resources → Capacity**, with the open problems no paper solves yet. Every entry is also placed on an interactive map and coded in three matrices (key result, contribution, limitation).', '');
+    out.push('## Contents', '');
+    toc.forEach(([t, a]) => out.push(`- [${mdText(t)}](#${a})`));
+    out.push('');
+    return out.concat(body).join('\n');
+  }
+
   function format(d) { return JSON.stringify(d, null, 2) + '\n'; }
 
-  return { apply, format, ENUMS, LIMITS, LABEL, PAPER_FIELDS, REQUIRED_NEW, TEXT_PATHS, CHANGE_TYPES, isPlainPath, cellLabel, describePath, short };
+  return { apply, format, readme, SITE, REPO, ENUMS, LIMITS, LABEL, PAPER_FIELDS, REQUIRED_NEW, TEXT_PATHS, CHANGE_TYPES, isPlainPath, cellLabel, describePath, short };
 })();
 // ==== CORE END ====
 
 const MAX_BODY = 250_000;
 const recent = new Map();            // per-instance rate limit: visitor key -> timestamps
-let cache = { sha: '', text: '', at: 0 }; // base data.json, reused for a minute
+let cache = { sha: '', text: '', data: null, at: 0 }; // base data.json (text and parsed), reused for a minute
 
 // settings typed in the dashboard often carry a stray space ("main "): every text setting is trimmed once
 const tidy = env => Object.fromEntries(Object.entries(env || {}).map(([k, v]) => [k, typeof v === 'string' ? v.trim() : v]));
@@ -524,11 +681,13 @@ async function handle(request, env) {
   const baseSha = ref.object.sha;
   if (cache.sha !== baseSha || Date.now() - cache.at > 60_000) {
     const t = await gh(`/contents/${path.split('/').map(encodeURIComponent).join('/')}?ref=${baseSha}`, { raw: true });
-    cache = { sha: baseSha, text: t, at: Date.now() };
+    let parsed;
+    try { parsed = JSON.parse(t); } catch { throw new Error('data.json on the base branch is not valid JSON'); }
+    cache = { sha: baseSha, text: t, data: parsed, at: Date.now() };
   }
   const text = cache.text;
   let data;
-  try { data = JSON.parse(text); } catch { throw new Error('data.json on the base branch is not valid JSON'); }
+  data = cache.data; // CORE.apply works on its own copy, so the parsed base can be reused
 
   const result = CORE.apply(data, changes); // throws SuggestionError with a readable message
   const newText = CORE.format(result.data);
@@ -549,6 +708,8 @@ async function handle(request, env) {
 
   const files = [];
   if (dataChanged) files.push({ path, content: newText });
+  // the awesome list (README.md) follows data.json in the same pull request
+  if (dataChanged && path === 'data.json') files.push({ path: 'README.md', content: CORE.readme(result.data) });
   if (comments.length) files.push({ path: `suggestions/${branch.replace('suggestion/', '')}.md`, content: noteFile(title, reason, name, result.log, stamp) });
 
   const baseCommit = await gh(`/git/commits/${baseSha}`);

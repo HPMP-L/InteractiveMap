@@ -124,6 +124,24 @@ walk(d.matrices, 'matrices'); walk(d.map, 'map'); walk(d.meta, 'meta');
   (s.cards || []).forEach((c, ci) => { if (!pids.has(c.p)) err(`matrices/${mi}/sections/${si}/cards/${ci}`, `unknown paper ${c.p}`); });
 }));
 
+// README.md is the awesome list generated from data.json: it must be exactly what CORE.readme writes, so a pull request
+// cannot slip anything into it that is not in the data. --fix rewrites it.
+const readmeFile = path.join(root, 'README.md');
+let readmeNow = '';
+try { readmeNow = fs.readFileSync(readmeFile, 'utf8'); } catch { /* no README yet */ }
+const readmeWanted = CORE.readme(d);
+if (readmeNow !== readmeWanted) {
+  if (process.argv.includes('--fix')) { fs.writeFileSync(readmeFile, readmeWanted); console.log('README.md regenerated.'); }
+  else err('README.md', 'does not match data.json. Regenerate it: open tools/readme.html through the local preview and copy the text into README.md, or run node tools/check-data.js --fix. If this pull request comes from the robot (a suggestion), the Worker in Cloudflare probably runs an older core.js: paste worker/worker.js there again, then refresh this branch');
+}
+// the worker carries its own copy of core.js: it must be the same, or suggestions and this check disagree
+const block = t => { const a = t.indexOf('// ==== CORE BEGIN ===='), b = t.indexOf('// ==== CORE END ===='); return a < 0 || b < 0 ? null : t.slice(a, b); };
+let workerText = '';
+try { workerText = fs.readFileSync(path.join(root, 'worker', 'worker.js'), 'utf8'); } catch { /* no worker in this copy */ }
+if (workerText && block(workerText) !== block(fs.readFileSync(path.join(root, 'core.js'), 'utf8'))) {
+  err('worker/worker.js', 'its copy of core.js is out of date. Run: py tools/sync_core.py (then paste worker/worker.js into Cloudflare)');
+}
+
 if (errors.length) {
   console.error(`data.json has ${errors.length} problem(s):`);
   errors.slice(0, 200).forEach(e => console.error('  - ' + e));

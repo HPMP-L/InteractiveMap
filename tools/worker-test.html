@@ -65,6 +65,7 @@ async function send(payload, { origin = 'https://me.github.io', ip, method = 'PO
 const check = (name, cond, extra) => R.push((cond ? 'PASS ' : 'FAIL ') + name + (extra ? '  ' + JSON.stringify(extra).slice(0, 300) : ''));
 const lastCommit = () => Object.entries(gh.commits).pop()[1];
 const lastData = () => JSON.parse(gh.blobs[gh.trees[lastCommit().tree].tree.find(t => t.path === 'data.json').sha]);
+const lastFile = path => { const t = gh.trees[lastCommit().tree].tree.find(x => x.path === path); return t ? gh.blobs[t.sha] : null; };
 const base = { reason: 'Fixing a number taken from v1 of the paper.', name: 'Test Person', website: '', elapsed: 9000 };
 const data = JSON.parse(original);
 
@@ -344,6 +345,41 @@ r = await send({ ...base, turnstile: 'badsecret', changes: [{ type: 'comment', t
 check('wrong Turnstile secret reported as a configuration error (503)', r.status === 503 && /anti-spam key/.test(r.body.error), r.body);
 r = await send(null, { method: 'GET' });
 check('health check shows sites, anti-spam and test mode', r.status === 200 && Array.isArray(r.body.allowedSites) && r.body.allowedSites[0] === 'https://me.github.io' && r.body.unsafeTestMode === true && r.body.token === true, r.body);
+
+// the awesome list (README.md) follows data.json in the same pull request
+r = await send({ ...base, changes: [{ type: 'paper.update', id: 'p039', fields: { venue: 'arXiv 2026 (v3)' } }] });
+const rm = lastFile('README.md');
+check('a change to the data also rewrites README.md, generated from the new data', r.status === 200 && rm === CORE.readme(lastData()) && rm.includes('arXiv 2026 \\(v3\\)'), rm && rm.slice(0, 120));
+r = await send({ ...base, changes: [{ type: 'comment', text: 'just a remark on the list' }] });
+check('a comment alone does not touch README.md', r.status === 200 && lastFile('README.md') === null && lastFile('data.json') === null);
+const evil = { short: 'Evil [click](https://evil.example) <img src=x onerror=alert(1)>', title: '![x](https://evil.example/t.png) Title @someone www.evil.example', venue: '# Heading | table', url: 'https://ok.example/paper_(v2)', status: 'preprint', proximity: 2, evidence: 'testbed', verdict: 'works', does: 'See https://evil.example now. More text.', keyResult: '', whyProximity: '', gap: '', limitation: '' };
+r = await send({ ...base, changes: [{ type: 'paper.add', tmp: 'new:1', paper: evil }] });
+const rm2 = lastFile('README.md') || '';
+const line = rm2.split('\n').find(l => l.includes('Evil')) || '';
+check('visitor text in README.md stays text: no link, image, HTML, heading or auto-link', r.status === 200
+  && !/\]\(https:\/\/evil/.test(line) && !/!\[/.test(line.replace(/\\!\\\[/g, '')) && !/(^|[^\\])<img/.test(line) && !/https:\/\/evil/.test(line)
+  && /\\\[click\\\]/.test(line) && /ok\.example\/paper_%28v2%29/.test(line), line);
+const t0r = performance.now(); for (let i = 0; i < 5; i++) CORE.readme(data); const msR = (performance.now() - t0r) / 5;
+check('README generation is quick enough for the worker (under 8 ms)', msR < 8, { ms: Math.round(msR * 10) / 10 });
+// more text that must stay text, and anchors that match GitHub's
+{
+  const dd = JSON.parse(original);
+  dd.papers.p039.title = 'Serving $k$ agents x_www.evil.example a@-evil.com';
+  const q = dd.map.nodes.find(n => n.kind === 'question'); q.text = '- looks like a list';
+  dd.tables.m1.cols[0].sub = '1. GPU first';
+  dd.tables.m1.cols[1].name = '🧭 Inference';
+  const md2 = CORE.readme(dd), L = md2.split('\n');
+  const pline = L.find(l => l.includes('Serving \\$k')) || '';
+  check('no math, auto-link or e-mail link from visitor text', /\\\$k\\\$/.test(pline) && !/(^|[^​])www\.evil/.test(pline.replace(/www​\./g, '')) && pline.includes('@​-evil') && !/[^\\]\$k/.test(pline), pline.slice(0, 160));
+  check('text at the start of a line never becomes a list', L.includes('1\\. GPU first') && L.some(l => l.startsWith('- \\- looks like a list')), L.filter(l => /GPU first|looks like a list/.test(l)));
+  check('contents anchors follow GitHub (emoji dropped, its space kept)', md2.includes('](#-inference-tr)') && L.includes('## 🧭 Inference \\(T→R\\)'), L.filter(l => /Inference/.test(l)).slice(0, 2));
+  check('no totals in the README (merges of two suggestions stay exact)', !/\*\*\d+ papers\*\*/.test(md2) && !/\d+ papers\./.test(md2));
+}
+// the whole CPU-bound path of one data suggestion (parse, apply, format, README) against the 10 ms of the free plan
+const cpuPath = () => { const dd = JSON.parse(original); const res = CORE.apply(dd, [{ type: 'paper.update', id: 'p039', fields: { venue: 'arXiv 2026 (cpu)' } }]); CORE.format(res.data); CORE.readme(res.data); };
+const c0 = performance.now(); cpuPath(); const cold = performance.now() - c0;
+const w0 = performance.now(); for (let i = 0; i < 5; i++) cpuPath(); const warm = (performance.now() - w0) / 5;
+check('whole CPU path of a data suggestion stays under 8 ms once warm', warm < 8, { coldMs: Math.round(cold * 10) / 10, warmMs: Math.round(warm * 10) / 10 });
 
 const fails = R.filter(l => l.startsWith('FAIL')).length;
 out.textContent = `${R.length - fails} passed, ${fails} failed\n\n` + R.join('\n') + '\n\nExample PR body:\n' + pr1.body;
