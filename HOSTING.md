@@ -54,8 +54,15 @@ peut ouvrir le Microsoft Store au lieu de lancer Python.
    ```
    L'adresse apparaît dans l'historique public du dépôt : vous pouvez utiliser celle en `…@users.noreply.github.com`
    indiquée dans GitHub → **Settings → Emails**.
-3. Dans le dépôt : **Settings → Pages → Build and deployment → Deploy from a branch**, branche `main`, dossier `/ (root)`.
-   Au bout d'une minute le site est en ligne sur <https://hpmp-l.github.io/InteractiveMap/>.
+3. Activez GitHub Pages dans les réglages **du dépôt** (pas ceux de votre compte : la page « Pages » de votre profil ne sert
+   qu'aux noms de domaine). Lien direct : <https://github.com/HPMP-L/InteractiveMap/settings/pages>. Sinon : page du dépôt →
+   onglet **Settings** sous le nom du dépôt (s'il n'apparaît pas, menu **…** à droite des onglets) → barre de gauche,
+   section *Code and automation* → **Pages**. Puis, sous **Build and deployment** :
+   - **Source** : *Deploy from a branch* ;
+   - **Branch** : `main`, dossier `/ (root)`, puis **Save**.
+
+   Au bout d'une à deux minutes, le site est en ligne sur <https://hpmp-l.github.io/InteractiveMap/> (l'adresse s'affiche
+   aussi en haut de cette page de réglages).
 
 À ce stade le site fonctionne en lecture. Le bouton « Send » reste désactivé tant que l'étape 5 n'est pas faite ; les
 visiteurs peuvent quand même copier leurs suggestions.
@@ -133,7 +140,9 @@ Personal access tokens**, supprimez-le (**Delete**), créez-en un nouveau et rem
 1. Créez un compte gratuit sur <https://dash.cloudflare.com> et activez la double authentification.
 2. **Turnstile → Add widget** : nom `InteractiveMap`, domaine **`hpmp-l.github.io`**, mode *Managed*. Gardez la page ouverte :
    elle affiche une **site key** (publique) et une **secret key** (secrète).
-3. **Workers & Pages → Create → Create Worker**, nommez-le `research-map-suggestions`, puis **Deploy**.
+3. **Workers & Pages → Create** : sur l'écran « Make something new », choisissez **Start with Hello World!**, nommez le
+   Worker `research-map-suggestions`, puis **Deploy**. Ne choisissez pas *Connect GitHub* (cela donnerait à Cloudflare un
+   accès à vos dépôts, inutile ici) ni *Upload your static files* (le site reste sur GitHub Pages).
 4. **Edit code** : remplacez tout le code par le contenu de `worker/worker.js`, puis **Deploy**.
 5. **Settings → Variables and Secrets** du Worker, ajoutez :
 
