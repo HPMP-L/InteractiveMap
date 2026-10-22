@@ -562,6 +562,57 @@ input::placeholder,textarea::placeholder{color:var(--muted); opacity:1}
 .radio-row label{display:flex; gap:6px; align-items:center}
 .err{color:var(--bad); font-size:13.5px; margin:0}
 .okmsg{color:var(--ok); font-size:13.5px; margin:0}
+/* "Suggest a change": one step at a time */
+html{scroll-padding-top:calc(var(--hdr-h) + var(--bar-h, 0px) + 12px)}
+.wiz{max-width:780px; display:grid; gap:14px; margin-top:14px}
+.wiz-steps{list-style:none; margin:0; padding:0; display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px}
+.wiz-steps li{display:flex; align-items:center; gap:10px; font:500 14px/1.2 var(--sans); color:var(--muted)}
+.wiz-steps li:not(:last-child)::after{content:""; width:28px; height:1px; background:var(--rule-2)}
+.wiz-steps button{all:unset; display:flex; align-items:center; gap:8px; cursor:pointer; border-radius:999px; min-height:32px}
+.wiz-steps button:hover .lbl{text-decoration:underline}
+.wiz-steps button:focus-visible{outline:2px solid var(--accent); outline-offset:3px}
+.wiz-steps .num{flex:none; width:26px; height:26px; border-radius:50%; display:grid; place-items:center; border:1.5px solid var(--rule-2); font:600 13px/1 var(--sans); color:var(--muted)}
+.wiz-steps li.now{color:var(--ink); font-weight:600}
+.wiz-steps li.now .num{background:var(--strong-bg); border-color:var(--strong-bg); color:var(--strong-ink)}
+.wiz-steps li.done{color:var(--ink-2)}
+.wiz-steps li.done .num{border-color:var(--ink-2); color:var(--ink)}
+.wiz-panel{display:grid; gap:14px}
+.wiz-panel > *,.wiz-sum > *{min-width:0}
+.wiz-panel h2{margin:0}
+.wiz-of{display:block; font:600 12.5px/1.4 var(--sans); color:var(--muted); margin-bottom:2px}
+/* main button first in the page order: on the right on wide screens, on top on phones */
+.wiz-foot{display:flex; flex-direction:row-reverse; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; padding-top:14px; border-top:1px solid var(--rule)}
+.wiz-foot-r{display:flex; flex-direction:row-reverse; gap:8px; flex-wrap:wrap; align-items:center}
+.wiz-opts{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px}
+.wiz-opt{display:grid; gap:4px; align-content:start; text-align:left; padding:14px 16px; border:1px solid var(--rule-2); border-radius:16px; background:var(--surface); color:var(--ink); cursor:pointer; font:inherit}
+.wiz-opt:hover{border-color:var(--ink-2)}
+.wiz-opt:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.wiz-opt[aria-expanded="true"]{border-color:var(--ink); box-shadow:inset 0 0 0 1px var(--ink)}
+.wiz-opt b{font:600 15px/1.25 var(--sans)}
+.wiz-opt span{font-size:13px; line-height:1.4; color:var(--muted)}
+.wiz-more{margin:6px 0 0}
+.wiz-help{display:grid; gap:8px; padding:14px 16px; border:1px solid var(--rule); border-radius:16px; background:var(--bg); font-size:14px; color:var(--ink-2)}
+.wiz-help p{margin:0}
+.wiz-help ul{margin:0; padding-left:20px; display:grid; gap:4px}
+.wiz-help-go{display:flex; flex-wrap:wrap; gap:8px}
+.wiz-sum{display:grid; gap:8px; padding:14px 16px; border:1px solid var(--rule); border-radius:16px; background:var(--bg)}
+.wiz-sum-h{display:flex; justify-content:space-between; align-items:center; gap:8px}
+.wiz-sum-h .dg-l{margin:0}
+.wiz-list{margin:0; padding-left:20px; display:grid; gap:4px; font-size:14px; color:var(--ink-2)}
+.wiz-list b{color:var(--ink); font-weight:600}
+.wiz .quote{margin:0; border-left:3px solid var(--rule-2); padding:4px 0 4px 12px; color:var(--ink-2); font-size:14px; white-space:pre-line}
+.wiz .quote,.wiz-sum .sec-p,.wiz-list{overflow-wrap:anywhere}
+.wiz .small{font-size:13px}
+.add-hint{margin:0; font-size:13px; color:var(--muted)}
+@media (max-width:700px){ .wiz-opts{grid-template-columns:1fr} .wiz-steps .lbl{font-size:13px} .wiz-steps li:not(:last-child)::after{width:14px} }
+/* phones: the three circles stay on one line (only the current step is named), buttons stack, main one on top */
+@media (max-width:520px){
+  .wiz-steps{flex-wrap:nowrap}
+  .wiz-steps li:not(.now) .lbl{position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap}
+  .wiz-steps li:not(:last-child)::after{width:20px}
+  .wiz-foot,.wiz-foot-r{flex-direction:column; align-items:stretch}
+  .wiz-foot .btn{justify-content:center}
+}
 .hp{position:absolute; left:-9999px; width:1px; height:1px; overflow:hidden}
 
 /* papers view */
@@ -695,6 +746,8 @@ const S = {
   base: null, eff: null, data: null, I: null, view: null, sel: null, preview: false,
   basket: [], flt: {}, sort: { key: 'short', dir: 1 }, plist: { q: '', status: '', proximity: '', verdict: '', evidence: '' },
   rendered: {}, mapv: { k: 0.3, x: 0, y: 0 }, mapReady: false, pageStart: Date.now(), tmpN: 0, ts: '',
+  // "Suggest a change": step (1, 2, 3, or 'done'), last result, reason and name (kept in memory, copied to storage)
+  sgStep: 1, sgSent: null, lastAdded: '', reason: null, name: null, sgHelp: false, sending: false, onTs: null, tsFailed: false,
 };
 
 /* ---------- small helpers ---------- */
@@ -907,8 +960,8 @@ function addChanges(changes, msg) {
   const all = S.basket.map(b => b.change).concat(changes);
   CORE.apply(S.base, all); // throws with a readable message if something is wrong
   changes.forEach(c => S.basket.push({ change: c, at: Date.now() }));
+  S.lastAdded = msg || ''; if (S.sgStep === 'done') { S.sgStep = 1; S.sgSent = null; }
   persist(); recompute(); rerender(S.preview);
-  toast(msg || `Added to your suggestions (${S.basket.length})`, { label: 'Review and send', run: () => go('suggest') });
 }
 function removeChange(idx) {
   const target = S.basket[idx]; if (!target) return;
@@ -1054,7 +1107,7 @@ function renderPreviewBar() {
   const bar = $('#preview-bar'); bar.textContent = '';
   bar.hidden = !(S.preview && S.basket.length && !S.basketError);
   if (!bar.hidden) {
-    bar.append(h('span', { text: `You are looking at the page with your ${S.basket.length} pending suggestion${S.basket.length > 1 ? 's' : ''} applied.` }),
+    bar.append(h('span', { text: `You are looking at the page with your ${S.basket.length} pending change${S.basket.length > 1 ? 's' : ''} applied.` }),
       h('button', { class: 'btn small', type: 'button', text: 'Show the published version', onclick: () => { setPreview(false); const m = $('#main'); if (m) m.focus({ preventScroll: true }); } }));
   }
   document.documentElement.style.setProperty('--bar-h', bar.hidden ? '0px' : bar.getBoundingClientRect().height + 'px');
@@ -2006,7 +2059,7 @@ function askDiscard(run) {
   const old = $('#discard-bar'); if (old) old.remove();
   const keep = h('button', { class: 'btn', type: 'button', text: 'Keep editing', onclick: () => { bar.remove(); const f = $('#dr-body form input, #dr-body form textarea, #dr-body .rich'); if (f) f.focus(); } });
   const bar = h('div', { id: 'discard-bar', class: 'discard', role: 'alertdialog', 'aria-labelledby': 'discard-t' },
-    h('p', { id: 'discard-t', text: 'You have an edit that is not in your suggestions yet. Discard it?' }),
+    h('p', { id: 'discard-t', text: 'You have an edit that is not in your changes yet. Discard it?' }),
     h('div', { class: 'row' }, keep,
       h('button', { class: 'btn danger', type: 'button', text: 'Discard the edit', onclick: () => { bar.remove(); S.editing = false; S.formDirty = false; run(); } })));
   $('#dr-body').prepend(bar);
@@ -2241,7 +2294,7 @@ function panelAxis(tid, type, id) {
 }
 
 /* ---------- suggestion forms (in the side panel) ---------- */
-function formShell(kicker, title, intro, build, onSubmit) {
+function formShell(kicker, title, intro, build, onSubmit, submitLabel) {
   S.editing = true; S.formDirty = false;
   drawer(h('span', { text: kicker }), body => {
     body.append(h('h2', { id: 'dr-h', text: title }));
@@ -2249,8 +2302,8 @@ function formShell(kicker, title, intro, build, onSubmit) {
     const err = h('p', { class: 'err', role: 'alert' });
     const form = h('form', { class: 'form', novalidate: true });
     build(form);
-    form.append(err, h('div', { class: 'actions' },
-      h('button', { class: 'btn primary', type: 'submit', text: 'Add to my suggestions' }),
+    form.append(err, h('p', { class: 'hint add-hint', text: 'Nothing is sent yet: your changes wait in the “Suggest” tab, where you send them all at once.' }), h('div', { class: 'actions' },
+      h('button', { class: 'btn primary', type: 'submit', text: submitLabel || 'Add to my changes' }),
       h('button', { class: 'btn', type: 'button', text: 'Cancel', onclick: () => {
         S.editing = false; S.formDirty = false;
         if (!S.sel || S.sel.type === 'new' || S.sel.type === 'comment') closeDrawer(); else openDrawer(S.sel);
@@ -2259,17 +2312,55 @@ function formShell(kicker, title, intro, build, onSubmit) {
     form.addEventListener('change', () => { S.formDirty = true; });
     form.addEventListener('submit', e => {
       e.preventDefault(); err.textContent = '';
-      try { onSubmit(form); S.editing = false; S.formDirty = false; if (S.sel && S.sel.type !== 'new' && S.sel.type !== 'comment') openDrawer(S.sel); else closeDrawer(); }
+      try {
+        onSubmit(form); S.editing = false; S.formDirty = false;
+        const sel = S.sel;
+        // a form opened on its own address (new paper, comment) must not come back with the browser's Back button
+        if (sel && (sel.type === 'new' || sel.type === 'comment')) { history.replaceState(null, '', '#' + S.view); S.lastHash = location.hash; }
+        showAdded(() => {
+          if (sel && sel.type !== 'new' && sel.type !== 'comment') { openDrawer(sel); return; }
+          closeDrawer(true);
+          if (S.view === 'suggest') { const t = $('#wiz-more') || $('#view-suggest .wiz-opt'); if (t) t.focus(); }
+        });
+      }
       catch (x) { err.textContent = x.message; }
     });
     body.append(form);
     const first = $('input:not([type=hidden]),textarea,select,.rich', form); if (first) setTimeout(() => first.focus(), 30);
   });
 }
+/* after "Add to my changes": say plainly that nothing is sent yet, and offer the two ways on */
+function showAdded(keepBrowsing) {
+  const n = S.basket.length;
+  drawer(h('span', { text: 'Added' }), body => {
+    body.append(h('h2', { id: 'dr-h', text: S.lastAdded || 'Added to your changes' }),
+      h('p', { text: `Nothing is sent yet. You now have ${n} change${n > 1 ? 's' : ''} waiting. Add more if you like, then send them all in one go.` }),
+      h('div', { class: 'actions' },
+        h('button', { class: 'btn primary', type: 'button', text: 'Review and send →', onclick: openSuggest }),
+        h('button', { class: 'btn', type: 'button', text: 'Add another change', onclick: keepBrowsing })));
+  });
+}
+/* open "Suggest a change" at its first step */
+function openSuggest() {
+  if (!S.sending) { S.sgStep = S.sgStep === 'done' && !S.basket.length ? 'done' : 1; S.sgHelp = false; }
+  S.rendered.suggest = false;
+  closeDrawer(true);
+  if (S.view === 'suggest' && location.hash === '#suggest') rerender(false); else go('suggest');
+  focusWizard();
+}
+/* bring the steps into view under the sticky header and put the keyboard on the step title */
+function focusWizard() {
+  const w = $('#view-suggest .wiz'), t = $('#view-suggest .wiz-panel h2');
+  if (w) w.scrollIntoView({ block: 'start' });
+  if (t) { t.tabIndex = -1; t.focus({ preventScroll: true }); }
+}
 function field(label, input, hint) {
   const id = input.id || ('f' + Math.random().toString(36).slice(2, 8));
   input.id = id;
-  return h('div', { class: 'field' }, input.classList && input.classList.contains('rich') ? h('span', { class: 'lab', id: id + '-l', text: label }) : h('label', { for: id, text: label }), input, hint ? h('span', { class: 'hint', text: hint }) : null);
+  // the hint is read out with the field
+  const hid = hint ? id + '-hint' : null;
+  if (hid) input.setAttribute('aria-describedby', [input.getAttribute('aria-describedby'), hid].filter(Boolean).join(' '));
+  return h('div', { class: 'field' }, input.classList && input.classList.contains('rich') ? h('span', { class: 'lab', id: id + '-l', text: label }) : h('label', { for: id, text: label }), input, hint ? h('span', { class: 'hint', id: hid, text: hint }) : null);
 }
 function richBox(id, value, block) {
   const ed = h('div', { class: 'rich', id, contenteditable: 'true', role: 'textbox', 'aria-multiline': 'true', 'aria-labelledby': id + '-l' });
@@ -2312,7 +2403,7 @@ function readPaper(form, idp) {
 }
 function formPaper(id) {
   const p = own(S.eff.papers, id) ? S.eff.papers[id] : P(id);
-  formShell('Suggest an edit', p.short, 'Change what is wrong, then add it to your suggestions. You can send several changes together.', form => paperFields(form, p, 'ep-'), form => {
+  formShell('Suggest an edit', p.short, 'Change what is wrong, then add it to your changes. You send all your changes together at the end.', form => paperFields(form, p, 'ep-'), form => {
     const now = readPaper(form, 'ep-'), fields = {};
     CORE.PAPER_FIELDS.forEach(k => { const a = typeof now[k] === 'string' ? now[k].trim() : now[k]; if (a !== p[k]) fields[k] = a; });
     if (!Object.keys(fields).length) throw new Error('Nothing has changed yet.');
@@ -2353,8 +2444,8 @@ function formPlacement(o) {
     S.editing = false;
     drawer(h('span', { text: 'Change a placement' }), body => {
       body.append(h('h2', { id: 'dr-h', text: 'This placement is already being removed' }),
-        h('p', { text: 'Your pending suggestions remove this paper from the cell. Remove that change in “Suggest a change” first if you want to edit the placement instead.' }),
-        h('div', { class: 'actions' }, h('a', { class: 'btn', href: '#suggest', text: 'Open my suggestions' })));
+        h('p', { text: 'Your pending changes remove this paper from the cell. Remove that change in step 1 of “Suggest” first if you want to edit the placement instead.' }),
+        h('div', { class: 'actions' }, h('button', { class: 'btn', type: 'button', text: 'Open my changes', onclick: openSuggest })));
     });
     return;
   }
@@ -2384,9 +2475,9 @@ function formPlacement(o) {
 }
 function formRemovePlacement(tid, row, col, pid) {
   const p = S.eff.papers[pid];
-  formShell('Remove a placement', `Remove ${p.short} from this cell?`, CORE.cellLabel(S.eff, tid, row, col) + '. Say why in the message when you send your suggestions.', () => {}, () => {
+  formShell('Remove a placement', `Remove ${p.short} from this cell?`, CORE.cellLabel(S.eff, tid, row, col) + '. You will say why in step 2, when you send.', () => {}, () => {
     addChanges([{ type: 'placement.remove', table: tid, row, col, paper: pid }]);
-  });
+  }, 'Yes, add this removal to my changes');
 }
 function formNode(id) {
   const n = S.eff.map.nodes.find(x => x.id === id) || S.I.nodes[id];
@@ -2463,7 +2554,7 @@ function panelNewPaper(spec) {
     if ($('#np-place', form).checked) changes.push(Object.assign({ type: 'placement.add', paper: tmp, main: true, why: $('#np-why', form).value }, form._cells()));
     const near = $('#np-node', form).value;
     if (near) changes.push({ type: 'node.add', near, kind: 'paper', paper: tmp, text: $('#np-map', form).value || readPaper(form, 'np-').does });
-    addChanges(changes, 'New paper added to your suggestions');
+    addChanges(changes, 'New paper added to your changes');
   });
 }
 function openTextEditor(paths, what) {
@@ -2505,98 +2596,214 @@ const CHANGE_NAMES = { 'paper.update': 'Edit paper', 'paper.add': 'Add paper', '
 function readableMarkup(s) {
   return plain(String(s || '').replace(/<a href="([^"]*)">([\s\S]*?)<\/a>/g, '$2 (→ $1)').replace(/<a data-p="([^"]*)">([\s\S]*?)<\/a>/g, '$2 [paper $1]').replace(/<br>|<\/(p|li|h4)>/g, '\n')).trim();
 }
+let openPRs = {};
+const reasonNow = () => (S.reason ??= String(store.get('wtrc-reason', '') || ''));
+const nameNow = () => (S.name ??= String(store.get('wtrc-name', '') || ''));
+function setReason(v) { S.reason = v; store.set('wtrc-reason', v); }
+function setName(v) { S.name = v; store.set('wtrc-name', v); }
+/* move between the steps: each step is a browser history entry, so Back goes one step back */
+function goStep(k, fromHistory) {
+  if (S.sending) return;
+  guard(() => {
+    if (!$('#drawer').hidden) closeDrawer(true);
+    S.sgStep = k; S.sgHelp = false;
+    if (!fromHistory) { history.pushState({ sgStep: k }, '', '#suggest'); S.lastHash = location.hash; }
+    rerender(false); focusWizard();
+  });
+}
+function clearAllChanges() {
+  const old = S.basket.slice();
+  S.basket = []; persist(); recompute(); rerender(true); focusWizard();
+  toast('All your changes were cleared.', { label: 'Undo', run: () => { S.basket = old; persist(); recompute(); rerender(true); } });
+}
 function renderSuggest() {
   const root = $('#view-suggest'); root.textContent = '';
   const wrap = h('div', { class: 'page wrap' });
   root.append(wrap);
+  const n = S.basket.length, changes = `${n} change${n > 1 ? 's' : ''}`;
+  const configured = !!(CFG.suggestEndpoint && CFG.turnstileSiteKey);
+  // three steps, one at a time: collect the changes, say why, check and send. Nothing leaves the page before step 3.
+  if (S.sgStep === 'done' && !S.sgSent) S.sgStep = 1;
+  if (S.sgStep !== 'done' && S.sgStep !== 1 && !S.sending && (!n || S.basketError)) S.sgStep = 1;
+  if (S.sgStep === 3 && reasonNow().trim().length < CORE.LIMITS.reasonMin) S.sgStep = 2;
   wrap.append(h('p', { class: 'eyebrow', text: 'Contribute' }), h('h1', { text: 'Suggest a change' }),
-    h('p', { class: 'lede', text: 'No account needed. Collect your changes anywhere on the site, explain why in one line, and send them. Each suggestion becomes a pull request that the maintainer reviews before it goes live.' }));
-  const left = h('div', { class: 'panel' });
-  const right = h('div', { class: 'stack' });
-  wrap.append(h('div', { class: 'contrib', style: 'margin-top:14px' }, left, right));
+    h('p', { class: 'lede', text: 'No account needed. Three steps: collect your changes, say why, then send them all at once. Nothing is published until the maintainer has reviewed it.' }));
+  const wiz = h('div', { class: 'wiz' });
+  wrap.append(wiz);
 
-  left.append(h('h2', { text: `Your pending changes (${S.basket.length})` }));
-  if (S.basketError) left.append(h('p', { class: 'err', text: `One of your pending changes no longer matches the current version of the site${S.badIndex >= 0 ? ` (change ${S.badIndex + 1}, marked below)` : ''}: ${S.basketError} Remove it to send the others.` }),
-    h('button', { class: 'btn small', type: 'button', text: 'Clear all my pending changes', onclick: () => { S.basket = []; persist(); recompute(); rerender(true); } }));
-  if (!S.basket.length) {
-    left.append(h('div', { class: 'empty-state' },
-      h('p', { style: 'margin:0', text: 'Nothing yet. Open any paper, box, cell or text and use “Suggest an edit”, or start here:' }),
-      h('div', { style: 'display:flex;flex-wrap:wrap;gap:8px' },
-        h('button', { class: 'btn', type: 'button', text: '+ Suggest a new paper', onclick: () => select({ type: 'new', id: 'paper' }) }),
-        h('button', { class: 'btn', type: 'button', text: 'Leave a general comment', onclick: () => select({ type: 'comment', id: 'general' }) }),
-        h('a', { class: 'btn', href: '#map', text: 'Browse the map' }))));
+  const STEPS = ['Your changes', 'Why', 'Check and send'];
+  const cur = S.sgStep === 'done' ? 4 : S.sgStep;
+  wiz.append(h('ol', { class: 'wiz-steps', role: 'list', 'aria-label': 'Steps' }, STEPS.map((label, i) => {
+    const k = i + 1, state = k < cur ? 'done' : k === cur ? 'now' : 'next';
+    const inner = [h('span', { class: 'num', 'aria-hidden': 'true', text: state === 'done' ? '✓' : String(k) }), h('span', { class: 'lbl', text: label }),
+      state === 'done' ? h('span', { class: 'sr', text: ' (done)' }) : null];
+    return h('li', { class: state, 'aria-current': state === 'now' ? 'step' : null },
+      state === 'done' && S.sgStep !== 'done' && !S.sending ? h('button', { type: 'button', title: `Back to step ${k}`, onclick: () => goStep(k) }, inner) : inner);
+  })));
+
+  const panel = h('section', { class: 'panel wiz-panel', 'aria-labelledby': 'wiz-h' });
+  wiz.append(panel);
+  const title = text => h('h2', { id: 'wiz-h' }, S.sgStep === 'done' ? null : h('span', { class: 'wiz-of', text: `Step ${S.sgStep} of 3` }), text);
+  // the main button comes first (first on phones, on the right on wide screens), "Back" second
+  const foot = (main, second) => h('div', { class: 'wiz-foot' }, main, second || null);
+  const back = k => h('button', { class: 'btn', type: 'button', text: '← Back', disabled: S.sending, onclick: () => goStep(k) });
+  const byChange = {};
+  (S.log || []).forEach(l => (byChange[l.i] ||= []).push(l));
+  const actionOf = (b, i) => (byChange[i] && byChange[i][0].action) || CHANGE_NAMES[b.change.type] || b.change.type;
+
+  if (S.sgStep === 1) {
+    const opt = (head, sub, run, id) => h('button', { class: 'wiz-opt', type: 'button', id, 'aria-expanded': id ? String(!!S.sgHelp) : null, 'aria-controls': id ? 'wiz-help' : null, onclick: run },
+      h('b', { text: head }), h('span', { text: sub }));
+    const opts = h('div', { class: 'wiz-opts' },
+      opt('+ A new paper', 'A paper missing from the map or the matrices.', () => select({ type: 'new', id: 'paper' })),
+      opt('Edit something', 'A paper, a box of the map, a matrix cell or a text.', () => {
+        S.sgHelp = !S.sgHelp; rerender(false);
+        const t = $(S.sgHelp ? '#wiz-help' : '#wiz-edit'); if (t) { t.tabIndex = -1; t.focus(); }
+      }, 'wiz-edit'),
+      opt('+ A comment', 'A remark or a question for the maintainer.', () => select({ type: 'comment', id: 'general' })));
+    const help = S.sgHelp ? h('div', { class: 'wiz-help', id: 'wiz-help', role: 'region', 'aria-label': 'How to edit something' },
+      h('p', { text: 'Open what you want to change, then click “Suggest an edit” in the panel that opens:' }),
+      h('ul', null,
+        h('li', { text: 'a paper: in the Papers list, or click it on the map or in a matrix;' }),
+        h('li', { text: 'a box of the map: click it on the Map;' }),
+        h('li', { text: 'a paper in a matrix cell: click the cell, then “edit…” next to the paper;' }),
+        h('li', { text: 'a heading or a text: click the pen icon next to it.' })),
+      h('p', { text: 'After “Add to my changes”, choose “Review and send” to come back here.' }),
+      h('div', { class: 'wiz-help-go' },
+        h('button', { class: 'btn small', type: 'button', text: 'Open the map', onclick: () => go('map') }),
+        h('button', { class: 'btn small', type: 'button', text: 'Open the matrices', onclick: () => go('m1') }),
+        h('button', { class: 'btn small', type: 'button', text: 'Open the list of papers', onclick: () => go('papers') }))) : null;
+    const next = foot(h('button', { class: 'btn primary', type: 'button', text: 'Next: say why →', disabled: !n || !!S.basketError, onclick: () => goStep(2) }));
+    panel.append(title(n ? `Your changes (${n})` : 'What would you like to change?'));
+    if (S.basketError) {
+      panel.append(h('p', { class: 'err', role: 'alert', text: `One of your changes no longer matches the current version of the site${S.badIndex >= 0 ? ` (change ${S.badIndex + 1}, marked below)` : ''}: ${S.basketError}` }),
+        S.badIndex >= 0 ? h('button', { class: 'btn small', type: 'button', text: 'Remove the outdated change', onclick: () => removeChange(S.badIndex) })
+          : h('button', { class: 'btn small', type: 'button', text: 'Clear all my changes', onclick: clearAllChanges }));
+    }
+    if (!n) {
+      panel.append(h('p', { class: 'sec-p', text: 'Choose a kind of change. Each change you add waits here, on this computer, until you send it: you can collect several, then go on.' }), opts, help, next);
+    } else {
+      const show = (v, isMarkup) => isMarkup ? readableMarkup(v) : String(v);
+      panel.append(h('p', { class: 'sec-p', text: 'Nothing is sent yet. Check your changes and remove any you do not want.' }),
+        h('ol', { class: 'chg' }, S.basket.map((b, i) => h('li', { class: i === S.badIndex ? 'bad' : null },
+          h('div', { class: 'h' }, h('span', { class: 'a', text: actionOf(b, i) }), h('button', { class: 'rm', type: 'button', text: 'Remove', 'aria-label': `Remove change ${i + 1}`, onclick: () => removeChange(i) })),
+          i === S.badIndex ? h('p', { class: 'err', text: S.basketError }) : null,
+          (byChange[i] || []).map(l => h('div', { class: 'diff' },
+            h('span', { class: 'tg', text: l.target }), l.field ? h('span', { class: 'f', text: l.field }) : null,
+            l.before ? h('div', { class: 'b', text: show(l.before, l.markup) }) : null, l.after ? h('div', { class: 'af', text: show(l.after, l.markup) }) : null))))),
+        h('label', { class: 'toggle' }, h('input', { type: 'checkbox', id: 'sg-preview', checked: S.preview, onchange: e => { setPreview(e.target.checked); const c = $('#sg-preview'); if (c) c.focus(); } }), 'Show my changes on the map and matrices'),
+        next,
+        h('h3', { class: 'dg-l wiz-more', id: 'wiz-more', tabindex: '-1', text: 'Add another change' }), opts, help);
+    }
+  } else if (S.sgStep === 2) {
+    // a visitor who only left comments has already said what they mean: their comment becomes the reason
+    const comments = S.basket.every(b => b.change.type === 'comment');
+    if (comments && !reasonNow().trim()) setReason(S.basket.map(b => String(b.change.text || '')).join(' ').replace(/\s+/g, ' ').trim().slice(0, CORE.LIMITS.reason));
+    panel.append(title(comments ? 'Anything to add for the maintainer?' : 'Why are you suggesting this?'),
+      h('p', { class: 'sec-p', text: comments ? 'Your comment is used as the reason. You can keep it as it is, or add a sentence.'
+        : `One or two sentences for the maintainer about your ${changes}: what is wrong or missing, and where the information comes from.` }));
+    const form = h('form', { class: 'form', novalidate: true });
+    const reason = h('textarea', { id: 'sg-reason', rows: '4', required: true, maxlength: String(CORE.LIMITS.reason), placeholder: 'e.g. The key result quotes v1 of the paper; v2 reports 0.81 instead of 0.73.' }, reasonNow());
+    const name = h('input', { id: 'sg-name', type: 'text', maxlength: String(CORE.LIMITS.name), value: nameNow(), autocomplete: 'name' });
+    const msg = h('p', { class: 'err', id: 'sg-reason-err', role: 'alert' });
+    reason.addEventListener('input', () => { setReason(reason.value); if (msg.textContent) { msg.textContent = ''; reason.removeAttribute('aria-invalid'); } });
+    name.addEventListener('input', () => setName(name.value));
+    form.append(field('Your reason', reason, 'Required: 10 characters at least.'), msg,
+      field('Your name (optional)', name, 'Shown publicly on GitHub with your suggestion. Leave empty to stay anonymous.'),
+      foot(h('button', { class: 'btn primary', type: 'submit', text: 'Next: check and send →' }), back(1)));
+    form.addEventListener('submit', e => {
+      e.preventDefault();
+      if (reason.value.trim().length < CORE.LIMITS.reasonMin) {
+        msg.textContent = 'Explain your suggestion in a sentence (10 characters at least).';
+        reason.setAttribute('aria-invalid', 'true');
+        if (!/sg-reason-err/.test(reason.getAttribute('aria-describedby') || '')) reason.setAttribute('aria-describedby', (reason.getAttribute('aria-describedby') || '') + ' sg-reason-err');
+        reason.focus(); return;
+      }
+      setReason(reason.value); setName(name.value);
+      goStep(3);
+    });
+    panel.append(form);
+  } else if (S.sgStep === 3) {
+    const reason = reasonNow().trim(), name = nameNow().trim();
+    const edit = (k, what) => h('button', { class: 'btn ghost small', type: 'button', text: 'Edit', 'aria-label': `Edit ${what}`, disabled: S.sending, onclick: () => goStep(k) });
+    panel.append(title('Check and send'),
+      h('div', { class: 'wiz-sum' },
+        h('div', { class: 'wiz-sum-h' }, h('span', { class: 'dg-l', text: `Your changes (${n})` }), edit(1, 'your changes')),
+        h('ol', { class: 'wiz-list' }, S.basket.map((b, i) => h('li', null, h('b', { text: actionOf(b, i) }), (byChange[i] && byChange[i][0].target) ? ` · ${byChange[i][0].target}` : ''))),
+        h('div', { class: 'wiz-sum-h' }, h('span', { class: 'dg-l', text: 'Your reason' }), edit(2, 'your reason')),
+        h('p', { class: 'quote', text: reason }),
+        h('div', { class: 'wiz-sum-h' }, h('span', { class: 'sec-p', text: name ? `Shown with your name: ${name}` : 'Your name: not given (you stay anonymous)' }), edit(2, 'your name'))));
+    const form = h('form', { class: 'form', novalidate: true });
+    form.append(h('div', { class: 'hp', 'aria-hidden': 'true' }, h('label', { for: 'sg-website', text: 'Website' }), h('input', { id: 'sg-website', type: 'text', tabindex: '-1', autocomplete: 'off' })));
+    const ts = h('div', { id: 'sg-ts' });
+    const msg = h('p', { class: 'err', id: 'sg-send-msg', role: 'alert' });
+    const sendLabel = `Send ${changes} for review`, waitLabel = 'Waiting for the anti-spam check…';
+    // the button only works once the anti-spam check has answered, so a visitor never has to click it twice
+    const btn = h('button', { class: 'btn primary', id: 'sg-send', type: 'submit', text: S.sending ? 'Sending…' : configured ? waitLabel : sendLabel, disabled: true });
+    S.onTs = ok => { if (!btn.isConnected || S.sending) return; btn.disabled = !ok; btn.textContent = ok ? sendLabel : waitLabel; };
+    form.append(ts, msg, foot(h('div', { class: 'wiz-foot-r' }, btn, h('button', { class: 'btn', type: 'button', text: 'Copy as text', onclick: copyBasket })), back(2)));
+    if (!configured) form.append(h('p', { class: 'sec-p small' }, 'Sending is not switched on for this copy of the site yet. ',
+      CFG.contact ? ['You can copy your changes and e-mail them to ', h('a', { href: 'mailto:' + CFG.contact, text: CFG.contact }), ' (address: ', h('code', { text: CFG.contact }), ').'] : 'You can copy your changes to keep them.'));
+    form.addEventListener('submit', e => { e.preventDefault(); submitBasket(form); });
+    panel.append(form, h('p', { class: 'sec-p small', text: 'After sending, your changes and your reason open as one pull request on GitHub. The maintainer reviews it, then publishes it or replies. Once published, the site updates within a minute or two.' }));
+    if (configured && !S.sending) loadTurnstile(ts);
   } else {
-    const byChange = {};
-    (S.log || []).forEach(l => (byChange[l.i] ||= []).push(l));
-    const show = (v, isMarkup) => isMarkup ? readableMarkup(v) : String(v);
-    left.append(h('ol', { class: 'chg' }, S.basket.map((b, i) => h('li', { class: i === S.badIndex ? 'bad' : null },
-      h('div', { class: 'h' }, h('span', { class: 'a', text: (byChange[i] && byChange[i][0].action) || CHANGE_NAMES[b.change.type] || b.change.type }), h('button', { class: 'rm', type: 'button', text: 'Remove', 'aria-label': `Remove change ${i + 1}`, onclick: () => removeChange(i) })),
-      i === S.badIndex ? h('p', { class: 'err', text: S.basketError }) : null,
-      (byChange[i] || []).map(l => h('div', { class: 'diff' },
-        h('span', { class: 'tg', text: l.target }), l.field ? h('span', { class: 'f', text: l.field }) : null,
-        l.before ? h('div', { class: 'b', text: show(l.before, l.markup) }) : null, l.after ? h('div', { class: 'af', text: show(l.after, l.markup) }) : null))))));
-    left.append(h('label', { class: 'toggle' }, h('input', { type: 'checkbox', id: 'sg-preview', checked: S.preview, onchange: e => { setPreview(e.target.checked); const c = $('#sg-preview'); if (c) c.focus(); } }), 'Show my changes on the map and matrices'));
-    left.append(h('div', { style: 'display:flex;flex-wrap:wrap;gap:8px' },
-      h('button', { class: 'btn small', type: 'button', text: '+ Suggest a new paper', onclick: () => select({ type: 'new', id: 'paper' }) }),
-      h('button', { class: 'btn small', type: 'button', text: '+ Comment', onclick: () => select({ type: 'comment', id: 'general' }) })));
+    const left = S.basket.length;
+    panel.append(title('Sent. Thank you!'),
+      h('p', { class: 'okmsg', role: 'status' }, h('a', { href: S.sgSent.url, target: '_blank', rel: 'noopener noreferrer', text: `Your suggestion #${S.sgSent.number} is open for review ↗` })),
+      h('p', { class: 'sec-p', text: 'That’s all: you don’t need to do anything else. Keep this link to follow replies; you will not get an e-mail.' }),
+      left ? h('p', { class: 'sec-p', text: `${left} change${left > 1 ? 's' : ''} added while sending ${left > 1 ? 'are' : 'is'} still waiting: you can send ${left > 1 ? 'them' : 'it'} as a new suggestion.` }) : null,
+      h('ol', { class: 'steps' },
+        h('li', { text: 'The maintainer reads it on GitHub.' }),
+        h('li', { text: 'They publish it or reply to it there.' }),
+        h('li', { text: 'Once published, the site updates within a minute or two.' })),
+      foot(h('button', { class: 'btn primary', type: 'button', text: left ? 'Review my other changes' : 'Suggest something else', onclick: () => { S.sgSent = null; goStep(1); } })));
   }
 
-  const send = h('form', { class: 'panel form', novalidate: true });
-  send.append(h('h2', { text: 'Send for review' }));
-  const configured = !!(CFG.suggestEndpoint && CFG.turnstileSiteKey);
-  send.append(field('Why are you suggesting this?', h('textarea', { id: 'sg-reason', rows: '4', required: true, maxlength: String(CORE.LIMITS.reason), placeholder: 'e.g. The key result quotes v1 of the paper; v2 reports 0.81 instead of 0.73.' }, store.get('wtrc-reason', '')), 'Required. One or two sentences are enough.'));
-  send.append(field('Your name (optional)', h('input', { id: 'sg-name', type: 'text', maxlength: String(CORE.LIMITS.name), value: store.get('wtrc-name', ''), autocomplete: 'name' }), 'Shown in the pull request. Leave empty to stay anonymous.'));
-  send.append(h('div', { class: 'hp', 'aria-hidden': 'true' }, h('label', { for: 'sg-website', text: 'Website' }), h('input', { id: 'sg-website', type: 'text', tabindex: '-1', autocomplete: 'off' })));
-  const ts = h('div', { id: 'sg-ts' }); send.append(ts);
-  const msg = h('p', { class: 'err', role: 'status', 'aria-live': 'polite' });
-  send.append(msg);
-  const btn = h('button', { class: 'btn primary', type: 'submit', text: S.basket.length ? `Send ${S.basket.length} change${S.basket.length > 1 ? 's' : ''}` : 'Send', disabled: !S.basket.length || !!S.basketError || !configured });
-  send.append(h('div', { style: 'display:flex;flex-wrap:wrap;gap:8px;align-items:center' }, btn,
-    S.basket.length ? h('button', { class: 'btn', type: 'button', text: 'Copy as text', onclick: copyBasket }) : null));
-  if (!configured) send.append(h('p', { class: 'sec-p', style: 'font-size:13.5px' }, 'Sending is not switched on for this copy of the site yet. ',
-    CFG.contact ? ['You can copy your changes and e-mail them to ', h('a', { href: 'mailto:' + CFG.contact, text: CFG.contact }), ' (address: ', h('code', { text: CFG.contact }), ').'] : 'You can copy your changes to keep them.'));
-  ['sg-reason', 'sg-name'].forEach(id => { const el = $('#' + id, send); el.addEventListener('input', () => store.set(id === 'sg-reason' ? 'wtrc-reason' : 'wtrc-name', el.value)); });
-  send.addEventListener('submit', e => { e.preventDefault(); submitBasket(send, msg, btn); });
-  right.append(send);
-  if (configured) loadTurnstile(ts);
-
-  right.append(h('div', { class: 'panel' }, h('h2', { text: 'What happens next' }), h('ol', { class: 'steps' },
-    h('li', { text: 'Your changes and your reason are sent together. Nothing is published yet.' }),
-    h('li', { text: 'A pull request opens on GitHub with a readable list of what changes.' }),
-    h('li', { text: 'The maintainer reads it, then merges it or closes it with a reply.' }),
-    h('li', { text: 'Once merged, the site updates within a minute or two.' }))));
-  if (CFG.repo) {
-    const box = h('div', { class: 'panel' }, h('h2', { text: 'Open suggestions' }), h('p', { class: 'sec-p', text: 'Loading…' }));
-    right.append(box);
-    fetch(`https://api.github.com/repos/${CFG.repo}/pulls?state=open&per_page=10`).then(r => r.ok ? r.json() : Promise.reject(r.status)).then(all => {
-      const list = all.filter(pr => pr.head && pr.head.repo && String(pr.head.repo.full_name).toLowerCase() === String(CFG.repo).toLowerCase() && String(pr.head.ref).startsWith('suggestion/'));
-      box.lastChild.remove();
-      if (!list.length) { box.append(h('p', { class: 'sec-p', text: 'None at the moment.' })); return; }
-      box.append(h('ul', { class: 'prlist' }, list.map(pr => h('li', null, h('span', { class: 'prn', text: '#' + pr.number }), h('a', { href: pr.html_url, target: '_blank', rel: 'noopener noreferrer', text: pr.title })))));
-      box.append(h('a', { href: `https://github.com/${CFG.repo}/pulls`, target: '_blank', rel: 'noopener noreferrer', text: 'All suggestions on GitHub ↗' }));
-    }).catch(() => { box.lastChild.textContent = 'The list could not be loaded right now.'; });
+  // other visitors' suggestions (not on the "Sent" screen: GitHub may not list the new one yet)
+  if (CFG.repo && S.sgStep !== 'done') {
+    const box = h('div', { class: 'panel wiz-open' }, h('h2', { text: 'Sent by visitors, waiting for review' }), h('p', { class: 'sec-p', text: 'Loading…' }));
+    wiz.append(box);
+    fillOpenPRs(box);
   }
 }
+function fillOpenPRs(box) {
+  // asked once a minute at most (moving between steps redraws this view); after a failure, again after 15 s
+  if (!openPRs.p || Date.now() - openPRs.at > 60000) {
+    openPRs = { at: Date.now(), p: fetch(`https://api.github.com/repos/${CFG.repo}/pulls?state=open&per_page=10`, { cache: 'no-cache' }).then(r => r.ok ? r.json() : Promise.reject(r.status)) };
+    const mine = openPRs;
+    mine.p.catch(() => { mine.at = Date.now() - 45000; });
+  }
+  openPRs.p.then(all => {
+    if (!box.isConnected) return;
+    const list = all.filter(pr => pr.head && pr.head.repo && String(pr.head.repo.full_name).toLowerCase() === String(CFG.repo).toLowerCase() && String(pr.head.ref).startsWith('suggestion/'));
+    box.lastChild.remove();
+    if (!list.length) { box.append(h('p', { class: 'sec-p', text: 'None at the moment.' })); return; }
+    box.append(h('ul', { class: 'prlist' }, list.map(pr => h('li', null, h('span', { class: 'prn', text: '#' + pr.number }), h('a', { href: pr.html_url, target: '_blank', rel: 'noopener noreferrer', text: pr.title })))));
+    box.append(h('a', { href: `https://github.com/${CFG.repo}/pulls`, target: '_blank', rel: 'noopener noreferrer', text: 'All suggestions on GitHub ↗' }));
+  }).catch(() => { if (box.isConnected) box.lastChild.textContent = 'The list could not be loaded right now.'; });
+}
 function copyBasket() {
-  const txt = JSON.stringify({ reason: ($('#sg-reason') || {}).value || '', changes: S.basket.map(b => b.change) }, null, 2);
+  const txt = JSON.stringify({ reason: reasonNow(), name: nameNow(), changes: S.basket.map(b => b.change) }, null, 2);
   const done = () => toast(CFG.contact ? `Copied. Paste it into an e-mail to ${CFG.contact}.` : 'Copied.');
   if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(done, () => fallbackCopy(txt, done)); else fallbackCopy(txt, done);
 }
 function fallbackCopy(txt, done) { const ta = h('textarea', { style: 'position:fixed;left:-9999px' }, txt); document.body.append(ta); ta.select(); try { document.execCommand('copy'); done(); } catch { toast('Copy failed. Select the text manually.'); } ta.remove(); }
 /* Cloudflare Turnstile: the script loads once, one widget at a time, and its token is cleared as soon as it expires,
-   fails or has been used, so the page never sends a dead token. */
+   fails or has been used, so the page never sends a dead token. S.onTs tells the Send button when a token is there. */
 let tsScript = null;
 function loadTurnstile(box) {
   if (window.turnstile && S.tsWidget != null) { try { window.turnstile.remove(S.tsWidget); } catch { /* already gone */ } }
-  S.tsWidget = null; S.ts = '';
+  S.tsWidget = null; S.ts = ''; S.tsFailed = false;
+  const tell = ok => { if (S.onTs) S.onTs(ok); };
   const render = () => {
     if (!box.isConnected) return;
     S.tsWidget = window.turnstile.render(box, {
       sitekey: CFG.turnstileSiteKey, action: 'suggest', size: box.clientWidth && box.clientWidth < 300 ? 'compact' : 'normal',
-      callback: t => { S.ts = t; },
-      'expired-callback': () => { S.ts = ''; },
-      'timeout-callback': () => { S.ts = ''; },
-      'error-callback': () => { S.ts = ''; tsNote(box, 'The anti-spam check could not run. Reload the page, or use “Copy as text” to keep your changes.'); },
+      callback: t => { S.ts = t; tell(true); },
+      'expired-callback': () => { S.ts = ''; tell(false); },
+      'timeout-callback': () => { S.ts = ''; tell(false); },
+      'error-callback': () => { S.ts = ''; tell(false); tsNote(box, 'The anti-spam check could not run. Reload the page, or use “Copy as text” below to keep your changes.'); },
     });
   };
   if (window.turnstile) { render(); return; }
@@ -2606,32 +2813,47 @@ function loadTurnstile(box) {
     el.onerror = reject;
     document.head.append(el);
   });
-  tsScript.then(render, () => { tsScript = null; tsNote(box, 'The anti-spam check could not load (blocked by the browser or the network). Use “Copy as text” to keep your changes.'); });
+  tsScript.then(render, () => { tsScript = null; tell(false); tsNote(box, 'The anti-spam check could not load (blocked by the browser or the network), so this browser cannot send. Use “Copy as text” below to keep your changes.'); });
 }
-function tsNote(box, text) { if (box.isConnected) box.replaceChildren(h('p', { class: 'err', text })); }
-async function submitBasket(form, msg, btn) {
-  msg.className = 'err'; msg.textContent = '';
-  const reason = $('#sg-reason', form).value.trim();
-  if (reason.length < CORE.LIMITS.reasonMin) { msg.textContent = 'Explain your suggestion in a sentence (10 characters at least).'; $('#sg-reason', form).focus(); return; }
-  if (!S.ts) { msg.textContent = 'Please complete the check above, then send again.'; return; }
-  btn.disabled = true; const label = btn.textContent; btn.textContent = 'Sending…';
+function tsNote(box, text) { S.tsFailed = true; if (box.isConnected) box.replaceChildren(h('p', { class: 'err', role: 'alert', text })); }
+async function submitBasket(form) {
+  const msgEl = () => $('#sg-send-msg'), say = t => { const m = msgEl(); if (m) m.textContent = t; };
+  say('');
+  if (S.sending) return;
+  const reason = reasonNow().trim(), name = nameNow().trim();
+  if (reason.length < CORE.LIMITS.reasonMin) { goStep(2); return; }
+  if (S.editing && S.formDirty && !$('#drawer').hidden) { say('An edit is still open in the side panel and is not in your changes yet: click “Add to my changes” there first, or cancel it.'); return; }
+  if (S.tsFailed) { say('The anti-spam check cannot run in this browser, so it cannot send. Use “Copy as text” to keep your changes' + (CFG.contact ? `, and e-mail them to ${CFG.contact}.` : '.')); return; }
+  if (!S.ts) { say('The anti-spam check has not finished yet. Wait a moment, or complete it above.'); return; }
+  const sent = S.basket.slice();
+  S.sending = true;
+  const btn = $('#sg-send'); if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
+  $$('#view-suggest .wiz-foot > .btn, #view-suggest .wiz-sum button, #view-suggest .wiz-steps button').forEach(b => { b.disabled = true; });
+  let out = {};
   try {
     const res = await fetch(CFG.suggestEndpoint, {
       method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ reason, name: $('#sg-name', form).value.trim(), website: $('#sg-website', form).value, elapsed: Date.now() - S.pageStart, turnstile: S.ts || undefined, changes: S.basket.map(b => b.change) }),
+      body: JSON.stringify({ reason, name, website: $('#sg-website', form).value, elapsed: Date.now() - S.pageStart, turnstile: S.ts || undefined, changes: sent.map(b => b.change) }),
     });
-    let out = {}; try { out = await res.json(); } catch { /* not JSON */ }
+    try { out = await res.json(); } catch { /* not JSON */ }
     if (!res.ok || !out.ok) throw new Error(out.error || `The server answered ${res.status}. Try again in a minute.`);
-    S.basket = []; S.preview = false; S.ts = ''; store.set('wtrc-reason', ''); persist(); recompute();
-    rerender();
-    const box = $('#view-suggest .panel');
-    box.prepend(h('p', { class: 'okmsg', role: 'status' }, 'Sent. ', h('a', { href: out.url, target: '_blank', rel: 'noopener noreferrer', text: `Suggestion #${out.number} is open for review ↗` })));
-    toast(`Suggestion #${out.number} sent for review`);
   } catch (e) {
-    msg.textContent = e.message; btn.disabled = false; btn.textContent = label;
-    S.ts = ''; // a token works once: get a fresh one
-    if (window.turnstile && S.tsWidget != null) { try { window.turnstile.reset(S.tsWidget); } catch { /* ignore */ } }
+    S.sending = false; S.ts = ''; // a token works once: get a fresh one
+    const net = e instanceof TypeError;
+    if (net) openPRs = {};
+    rerender(false); // back to a usable step 3, with a fresh anti-spam check
+    say(net ? 'The connection was interrupted. Your suggestion may already have been sent: check “Sent by visitors, waiting for review” below before sending again.' : e.message);
+    return;
   }
+  // keep only what was not part of this send (a change added meanwhile, here or in another tab, stays)
+  syncBasket();
+  const key = b => b.at + '|' + JSON.stringify(b.change);
+  const gone = new Set(sent.map(key));
+  S.basket = S.basket.filter(b => !gone.has(key(b)));
+  S.sending = false; S.preview = false; S.ts = ''; setReason(''); persist(); recompute();
+  S.sgSent = { number: out.number, url: out.url }; S.sgStep = 'done'; openPRs = {};
+  history.replaceState({ sgStep: 'done' }, '', '#suggest'); S.lastHash = location.hash;
+  rerender(); focusWizard();
 }
 
 /* ---------- global search ---------- */
@@ -2695,6 +2917,14 @@ function initGlobal() {
     guard(() => closeDrawer());
   });
   window.addEventListener('hashchange', () => route(true));
+  // the steps of "Suggest a change" share one address: Back and Forward move between them
+  window.addEventListener('popstate', e => {
+    const at = parseHash();
+    if (S.view !== 'suggest' || at.view !== 'suggest' || at.sel || S.sending) return;
+    const k = (e.state && e.state.sgStep) || 1;
+    if (k === S.sgStep) return;
+    S.sgStep = k; S.sgHelp = false; rerender(false); focusWizard();
+  });
   // keep pending suggestions in step when the site is open in several tabs
   window.addEventListener('storage', e => {
     if (e.key !== STORE_KEY || !S.base || e.newValue === e.oldValue) return;
