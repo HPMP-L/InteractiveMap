@@ -1,7 +1,8 @@
 name: Suggestion files
 
 # A pull request that the repository owner did not open and update themself (a suggestion opened by the robot account,
-# a pull request from a fork, a collaborator's branch) may change only data.json and suggestions/*.md, and only towards
+# a pull request from a fork, a collaborator's branch) may change only data.json, README.md (generated from it) and
+# suggestions/*.md, and only towards
 # the default branch. This check runs from the copy of this file on the default branch, so a pull request cannot edit or
 # switch it off, and it never checks out or runs the pull request's code: it only reads the list of changed files.
 # Make it required in Settings → Rules → Rulesets (status check "suggestion-files", source GitHub Actions).
@@ -17,7 +18,7 @@ jobs:
   suggestion-files:
     runs-on: ubuntu-latest
     steps:
-      - name: Only data.json and suggestions/*.md may change
+      - name: Only data.json, README.md and suggestions/*.md may change
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
@@ -62,7 +63,7 @@ jobs:
           while IFS=$'\t' read -r name status prev; do
             ok=0
             case "$name" in
-              data.json) ok=1 ;;
+              data.json|README.md) ok=1 ;;
               suggestions/*/*) ok=0 ;;
               suggestions/*.md) ok=1 ;;
             esac
@@ -74,4 +75,4 @@ jobs:
             echo "This pull request changes files that a suggestion may not change. Do not merge it."
             exit 1
           fi
-          echo "Only data.json and suggestions/*.md change."
+          echo "Only data.json, README.md and suggestions/*.md change."

@@ -1,9 +1,9 @@
 {
   "meta": {
-    "title": "State of the research: agentic workloads, resources and capacity",
-    "intro": "The Workload → Trajectory → Resources → Capacity chain, the papers that document each link, and the open questions. Lanes separate one agent run (execution) from what the platform does around it (orchestration); studies of real workloads sit at the bottom. Click any box to highlight it with everything below it and open its card. Drag to move, scroll or pinch to zoom.",
+    "title": "Awesome Agentic Capacity Planning",
+    "intro": "The Workload → Trajectory → Resources → Capacity chain, the papers that document each link, and the open questions. Lanes separate one agent run (execution) from what the platform does around it (orchestration); studies of real workloads sit at the bottom. Click any box to highlight it with everything below it and open its card. Drag to move, scroll or pinch to zoom. Missing a paper, maybe yours? Add it with the + button at the top: no account needed, and once published it also appears in the <a href=\"https://github.com/HPMP-L/InteractiveMap#readme\">Awesome list on GitHub</a>.",
     "footer": "The paper cards come from two earlier review documents, in French: the <a href=\"https://claude.ai/artifact/EUiQQbuYgnbDvVToBQejSP\">W→T→R→C Map</a> and the <a href=\"https://claude.ai/artifact/Gdm5u6HMNxwXpPPkhR3ZQL\">Orchestration Layer Map</a>. Coded in October 2026, with one main cell and at most two secondary cells per paper, each justified by the card.",
-    "subtitle": "State of research on predicting the infrastructure demand of LLM agents"
+    "subtitle": "A living map of research on the infrastructure demand of LLM agents"
   },
   "vocab": {
     "proximity": [

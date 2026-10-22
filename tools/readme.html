@@ -1,0 +1,31 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>README generator</title>
+<!-- Shows README.md as generated from data.json (CORE.readme in core.js). Serve the repository root (py -m http.server)
+     and open http://localhost:8000/tools/readme.html, then copy the text into README.md.
+     Suggestions sent through the site refresh README.md by themselves: this page is only needed after a hand edit of data.json. -->
+<style>
+  body{font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif; margin:16px; color:#1d1d1f; background:#fff}
+  pre{white-space:pre-wrap; overflow-wrap:anywhere; border:1px solid #d2d2d7; padding:12px; border-radius:8px; font:12.5px/1.45 ui-monospace,Consolas,monospace}
+  button{font:inherit; padding:6px 14px; border-radius:999px; border:1px solid #86868b; background:#fff; cursor:pointer}
+</style>
+<p><button id="copy" type="button">Copy</button> <span id="state">Generating…</span></p>
+<pre id="out"></pre>
+<script src="../core.js"></script>
+<script>
+(async () => {
+  const state = document.getElementById('state');
+  try {
+    const data = await (await fetch('../data.json', { cache: 'no-store' })).json();
+    const md = CORE.readme(data);
+    document.getElementById('out').textContent = md;
+    let current = '';
+    try { current = await (await fetch('../README.md', { cache: 'no-store' })).text(); } catch { /* no README yet */ }
+    state.textContent = current === md ? 'README.md is up to date.' : 'README.md differs from data.json: copy this text into README.md.';
+    document.getElementById('copy').onclick = () => navigator.clipboard.writeText(md).then(() => { state.textContent = 'Copied.'; }, () => { state.textContent = 'Copy failed: select the text below.'; });
+  } catch (e) {
+    state.textContent = 'Error: ' + e.message;
+  }
+  document.body.dataset.done = '1';
+})();
+</script>

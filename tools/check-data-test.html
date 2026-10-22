@@ -4,11 +4,11 @@
 <pre id="out">running…</pre>
 <script type="module">
 const get = async p => (await fetch('../' + p, { cache: 'no-store' })).text();
-const files = { 'data.json': await get('data.json'), 'core.js': await get('core.js') };
+const files = { 'data.json': await get('data.json'), 'core.js': await get('core.js'), 'README.md': await get('README.md'), 'worker.js': await get('worker/worker.js') };
 const script = await get('tools/check-data.js');
-async function run(dataText) {
+async function run(dataText, readmeText = files['README.md']) {
   const logs = []; let code = 0;
-  const fs = { readFileSync: (p) => files[p.split('/').pop()] === undefined ? '' : (p.endsWith('data.json') ? dataText : files[p.split('/').pop()]), writeFileSync() {} };
+  const fs = { readFileSync: (p) => p.endsWith('README.md') ? readmeText : files[p.split('/').pop()] === undefined ? '' : (p.endsWith('data.json') ? dataText : files[p.split('/').pop()]), writeFileSync() {} };
   const path = { resolve: () => '', join: (...a) => a.filter(Boolean).join('/') };
   const vm = { runInThisContext: c => (0, eval)(c) };
   const proc = { argv: [], exit: c => { code = c; throw new Error('__exit'); } };
@@ -40,6 +40,9 @@ const r2 = await run(JSON.stringify(bad, null, 2) + '\n');
 out.push('broken data: exit ' + r2.code + ' :: ' + r2.logs.join(' | '));
 const r3 = await run(JSON.stringify(JSON.parse(files['data.json'])));
 out.push('minified data: exit ' + r3.code + ' :: ' + r3.logs.join(' | '));
+// a README changed by hand (or by a pull request) is refused
+const r4 = await run(files['data.json'], files['README.md'].replace('## Contributing', '## Contributing\n\n[Click here](https://evil.example)'));
+out.push('README edited by hand: exit ' + r4.code + ' :: ' + r4.logs.join(' | '));
 document.getElementById('out').textContent = out.join('\n\n');
 window.__done = out;
 </script>

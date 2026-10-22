@@ -197,11 +197,13 @@ point 4) si ce n'est pas déjà fait, puis fermez cette pull request de test san
 
 - Chaque suggestion arrive comme une pull request intitulée `Suggestion: …`, ouverte par le compte robot, avec la raison
   donnée par le visiteur et l'avant/après de chaque changement. L'onglet **Files changed** montre exactement les lignes
-  modifiées de `data.json` ; c'est lui qui fait foi, la description n'est qu'un résumé.
+  modifiées de `data.json` ; c'est lui qui fait foi, la description n'est qu'un résumé. Quand les données changent, la même
+  pull request met aussi à jour `README.md`, la liste « awesome » générée à partir de `data.json`.
 - Deux vérifications tournent sur chaque pull request :
-  - **Check data** : `data.json` est bien formé. Si elle est rouge, ne fusionnez pas.
+  - **Check data** : `data.json` est bien formé, et `README.md` correspond exactement à `data.json` (personne ne peut y glisser
+    autre chose). Si elle est rouge, ne fusionnez pas.
   - **Suggestion files** : une pull request que vous n'avez pas ouverte vous-même (suggestion du robot, fork, autre
-    collaborateur) ne modifie que `data.json` et `suggestions/*.md`. Elle tourne depuis la copie de `main` : une pull request
+    collaborateur) ne modifie que `data.json`, `README.md` et `suggestions/*.md`. Elle tourne depuis la copie de `main` : une pull request
     ne peut ni la modifier ni la désactiver. Si elle est rouge, **ne fusionnez pas**.
 - Une pull request qui ne vient pas du compte robot (par exemple d'un fork) n'est pas passée par le Worker : relisez-la
   entièrement. Son titre peut imiter celui d'une suggestion. Pour un fork, **Check data** exécute le code du fork lui-même et
@@ -215,9 +217,42 @@ point 4) si ce n'est pas déjà fait, puis fermez cette pull request de test san
 - Une suggestion qui ajoute une boîte à la carte ne contient pas de coordonnées : elle dit seulement sous quelle boîte la
   placer, et la page la met en place elle-même, sans chevauchement.
 - Vous pouvez aussi modifier `data.json` vous-même (voir « Modifier la carte à la main » plus bas). Remettez-le ensuite au
-  format attendu avec `node tools/check-data.js --fix`, ou sans Node avec `py tools/format_data.py` (même résultat).
+  format attendu avec `node tools/check-data.js --fix`, ou sans Node avec `py tools/format_data.py` (même résultat), puis
+  régénérez `README.md` (voir « La liste awesome » plus bas).
 - Si vous modifiez `core.js`, lancez `py tools/sync_core.py` à la racine du dépôt, puis recollez `worker/worker.js` dans Cloudflare.
 - Tous les 90 jours : générez un nouveau jeton sur le compte robot et remplacez le secret `GITHUB_TOKEN` du Worker.
+
+## La liste awesome (README)
+
+Le `README.md` du dépôt est la liste « Awesome Agentic Capacity Planning ». Il est **généré** à partir de `data.json`
+(fonction `CORE.readme` de `core.js`) : ne le modifiez jamais à la main, **Check data** le refuserait.
+
+- Les suggestions envoyées par le site le mettent à jour d'elles-mêmes, dans la même pull request.
+- Après une modification de `data.json` à la main : lancez `py -m http.server` à la racine du dépôt, ouvrez
+  <http://localhost:8000/tools/readme.html>, cliquez sur **Copy** et collez le texte dans `README.md` (en remplaçant tout).
+  Avec Node : `node tools/check-data.js --fix` le réécrit directement.
+- Le nom de la liste et son sous-titre viennent de `data.json` (`meta.title`, `meta.subtitle`). L'adresse du site et le dépôt
+  sont dans `core.js` (`SITE` et `REPO`, en haut de la partie README) : une suggestion ne peut donc pas les changer. Le nom
+  affiché en haut du site et dans l'onglet du navigateur est écrit dans `index.html` (balise `<title>` et bloc `brand`).
+- Pour changer la présentation de la liste, dans une même pull request : modifiez `CORE.readme` dans `core.js`, lancez
+  `py tools/sync_core.py`, régénérez `README.md`. Fusionnez-la, puis **recollez tout de suite** `worker/worker.js` dans
+  Cloudflare : tant que le Worker garde l'ancienne version, les suggestions arrivent avec un README que **Check data** refuse.
+- Deux suggestions en attente peuvent toucher des lignes voisines du README. Après la fusion de la première, GitHub signale
+  alors un conflit sur la seconde : **Resolve conflicts**, gardez les deux lignes (sans les marques `<<<<<<<`, `=======`,
+  `>>>>>>>`), puis **Mark as resolved** et **Commit merge**. **Check data** revérifie le résultat.
+- Si **Check data** devient rouge sur `main` avec « README.md does not match data.json » (par exemple après deux fusions
+  coup sur coup) : régénérez `README.md` comme ci-dessus, sur une branche, et fusionnez-la. La suggestion suivante l'aurait
+  de toute façon remis à jour.
+
+**Mise en service (une seule fois)**, dans cet ordre :
+1. Fusionnez ou fermez les suggestions encore ouvertes.
+2. Fusionnez la pull request qui apporte la liste awesome.
+3. Recollez **aussitôt** le nouveau `worker/worker.js` dans Cloudflare (**Edit code**, puis **Deploy**).
+4. Envoyez une suggestion de test depuis le site : la pull request doit contenir `data.json` **et** `README.md`, avec
+   **Check data** et **Suggestion files** verts. Fermez-la ensuite sans la fusionner.
+
+Pour les auteurs, chaque fiche de papier sur le site propose un badge « Mentioned in Awesome » à afficher sur leur page de
+projet, avec un lien vers leur fiche : c'est l'incitation à venir compléter la carte.
 
 ## Anti-spam : ce qui protège vraiment
 
@@ -278,18 +313,20 @@ Exemples (champs simplifiés) :
   - rien sous une note, sous la bibliographie ou directement sous un en-tête de colonne ;
   - la bibliographie et « Problem framing » n'ont ni bande ni colonne : elles restent au-dessus de la grille.
 
-Après une modification, remettez le format avec `py tools/format_data.py` (ou `node tools/check-data.js --fix`), puis
-vérifiez : `node tools/check-data.js` vérifie toutes ces règles et indique la boîte en cause. Sans Node, ouvrez
-`tools/check-data-test.html` (voir ci-dessous) : sa première ligne doit dire `clean data: exit 0`.
+Après une modification, remettez le format avec `py tools/format_data.py` (ou `node tools/check-data.js --fix`), régénérez
+`README.md` (voir « La liste awesome »), puis vérifiez : `node tools/check-data.js` vérifie toutes ces règles et indique la
+boîte en cause. Sans Node, ouvrez `tools/check-data-test.html` (voir ci-dessous) : sa première ligne doit dire `clean data: exit 0`.
 
 ## Tester sans GitHub
 
 Lancez `py -m http.server` à la racine du dépôt, puis ouvrez :
 
 - <http://localhost:8000/tools/worker-test.html> : fait tourner `worker/worker.js` contre un GitHub simulé
-  (106 vérifications, dont les tentatives d'abus, l'anti-spam et le contrôle du jeton). La première ligne doit indiquer `0 failed`.
+  (110 vérifications, dont les tentatives d'abus, l'anti-spam, le contrôle du jeton et la liste awesome). La première ligne
+  doit indiquer `0 failed`.
 - <http://localhost:8000/tools/check-data-test.html> : lance la vérification de `data.json` dans le navigateur, puis sur une
-  copie volontairement cassée pour montrer qu'elle détecte bien les erreurs.
+  copie volontairement cassée, et sur un `README.md` modifié à la main, pour montrer qu'elle détecte bien les erreurs.
+- <http://localhost:8000/tools/readme.html> : affiche le `README.md` généré à partir de `data.json`, à copier.
 
 ## Coûts et limites
 

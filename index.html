@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>W→T→R→C Research Map</title>
-<meta name="description" content="State of research on predicting the infrastructure demand of LLM agents: an interactive map, three coding matrices and 123 papers. Anyone can suggest a change.">
+<title>Awesome Agentic Capacity Planning</title>
+<meta name="description" content="Awesome Agentic Capacity Planning: a living map of research on the infrastructure demand of LLM agents, with an interactive map, three coding matrices and an open list of papers. Anyone can add a paper.">
 <script>
   // Site settings. Fill these in once the suggestion worker is deployed (see HOSTING.md).
   try { if (JSON.parse(localStorage.getItem('wtrc-theme')) === 'dark') document.documentElement.dataset.theme = 'dark'; } catch (e) { /* storage unavailable */ }
@@ -105,8 +105,8 @@ button{font:inherit; color:inherit}
 .top-in{display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:8px 20px; align-items:center; padding-block:12px 10px}
 .brand{display:grid; gap:1px; min-width:0}
 .brand a{font:600 22px/1.1 var(--display); color:var(--ink); text-decoration:none; letter-spacing:-.015em; white-space:nowrap}
-.brand a .ch{font:600 13px/1 var(--sans); color:var(--muted); letter-spacing:.02em; margin-right:8px; vertical-align:2px}
-.brand p{margin:0; font-size:12.5px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.brand a .ch{font:600 13px/1 var(--sans); color:var(--muted); letter-spacing:.02em; margin-right:4px; vertical-align:2px}
+.brand p{margin:0; font-size:12.5px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:440px} /* never widens the name's column at the expense of the search box */
 .search{position:relative; justify-self:end; width:min(340px,100%)}
 .search input{width:100%; font:14px/1.2 var(--sans); padding:10px 16px 10px 38px; border-radius:12px; border:1px solid transparent; background:var(--field); color:var(--ink)}
 .search input:focus{background:var(--surface); border-color:var(--rule-2)}
@@ -605,6 +605,12 @@ html{scroll-padding-top:calc(var(--hdr-h) + var(--bar-h, 0px) + 12px)}
 .wiz .quote,.wiz-sum .sec-p,.wiz-list{overflow-wrap:anywhere}
 .wiz .small{font-size:13px}
 .add-hint{margin:0; font-size:13px; color:var(--muted)}
+.dr .badge-blk{padding:14px 16px; border:1px solid var(--rule); border-radius:16px; background:var(--bg); gap:8px}
+.badge-blk img{display:block; height:20px; width:auto}
+.code-snip{margin:0; padding:10px 12px; border-radius:10px; background:var(--surface); border:1px solid var(--rule); font:12px/1.45 var(--code); white-space:pre-wrap; overflow-wrap:anywhere; color:var(--ink-2)}
+.badge-row{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+.copied{font-size:13px; color:var(--ok)}
+.brand .bn-s{display:none}
 @media (max-width:700px){ .wiz-opts{grid-template-columns:1fr} .wiz-steps .lbl{font-size:13px} .wiz-steps li:not(:last-child)::after{width:14px} }
 /* phones: the three circles stay on one line (only the current step is named), buttons stack, main one on top */
 @media (max-width:520px){
@@ -664,7 +670,10 @@ html{scroll-padding-top:calc(var(--hdr-h) + var(--bar-h, 0px) + 12px)}
 .preview-bar .btn{background:transparent; color:var(--strong-ink); border-color:color-mix(in srgb,var(--strong-ink) 50%,transparent)}
 @media (max-width:760px){ body.on-map .drawer{max-height:52dvh} }
 @media (max-width:374px){ .tabs a{padding-inline:6px} }
-@media (max-width:430px){ .brand a .ch{display:none} }
+/* the name on small screens: smaller, then without "Awesome", then the short form; the button keeps only its + */
+@media (max-width:600px){ .brand a{font-size:18px} .brand a .ch{display:none} }
+@media (max-width:430px){ .brand .bn-l{display:none} .brand .bn-s{display:inline} }
+@media (max-width:350px){ .tools .np-s{position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap} #np-btn{padding-inline:12px} }
 /* the zoom buttons move clear of the open panel */
 @media (min-width:761px){ body.on-map:has(#drawer:not([hidden])) .map-zoom{right:calc(max(12px,env(safe-area-inset-right,0px)) + min(470px,100% - 24px) + 14px)} }
 @media (max-width:760px){ body.on-map:has(#drawer:not([hidden])) .map-zoom{top:14px; bottom:auto} body.on-map:has(#drawer:not([hidden])) .map-help{display:none} }
@@ -681,8 +690,8 @@ html{scroll-padding-top:calc(var(--hdr-h) + var(--bar-h, 0px) + 12px)}
 <header class="top gut" id="top">
   <div class="top-in wrap wide">
     <div class="brand">
-      <a href="#map"><span class="ch">W→T→R→C</span>Research map</a>
-      <p id="brand-sub">State of research on predicting the infrastructure demand of LLM agents</p>
+      <a href="#map"><span class="ch">Awesome </span><span class="bn-l">Agentic Capacity Planning</span><span class="bn-s">Capacity Planning</span></a>
+      <p id="brand-sub">A living map of research on the infrastructure demand of LLM agents</p>
     </div>
     <div class="search" role="search">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
@@ -692,7 +701,7 @@ html{scroll-padding-top:calc(var(--hdr-h) + var(--bar-h, 0px) + 12px)}
       <p class="sr" id="q-count" aria-live="polite"></p>
     </div>
     <div class="tools">
-      <button class="btn primary small" id="np-btn" type="button"><span aria-hidden="true">+</span> <span class="np-l">Suggest a new paper</span><span class="np-s">New paper</span></button>
+      <button class="btn primary small" id="np-btn" type="button" title="Add your paper"><span aria-hidden="true">+</span> <span class="np-l">Add your paper</span><span class="np-s">Add paper</span></button>
       <button class="icon-btn" id="theme-btn" type="button" title="Dark theme" aria-label="Dark theme" aria-pressed="false">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
       </button>
@@ -703,7 +712,7 @@ html{scroll-padding-top:calc(var(--hdr-h) + var(--bar-h, 0px) + 12px)}
 <div class="preview-bar gut" id="preview-bar" hidden></div>
 
 <main id="main" tabindex="-1">
-  <section class="view" id="view-map" aria-label="Research map" hidden>
+  <section class="view" id="view-map" aria-label="Map" hidden>
     <div class="map-ui map-zoom" role="group" aria-label="Zoom">
       <button class="icon-btn" type="button" id="z-in" title="Zoom in" aria-label="Zoom in"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
       <div class="zl num" id="z-level">100%</div>
@@ -752,6 +761,10 @@ const S = {
 };
 
 /* ---------- small helpers ---------- */
+// the list's name and public address, from data.json (meta.title, meta.site)
+const siteName = () => (S.data && S.data.meta && S.data.meta.title) || 'Awesome Agentic Capacity Planning';
+const siteUrl = () => CORE.SITE; // the public address, also used by the README (core.js)
+const listUrl = () => `https://github.com/${CORE.REPO}#readme`;
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 function h(tag, props, ...kids) {
@@ -1056,7 +1069,7 @@ function showView(view) {
   }
   if (!S.rendered[view]) { RENDER[view](); S.rendered[view] = true; }
   if (view === 'map' && !S.mapReady) { requestAnimationFrame(initialFit); setTimeout(initialFit, 400); } // the timer covers tabs opened in the background, where frames wait
-  document.title = (view === 'map' ? '' : (view === 'papers' ? 'Papers · ' : view === 'suggest' ? 'Suggest a change · ' : pageOf(view).nav + ' · ')) + 'W→T→R→C Research Map';
+  document.title = (view === 'map' ? '' : (view === 'papers' ? 'Papers · ' : view === 'suggest' ? 'Suggest a change · ' : pageOf(view).nav + ' · ')) + siteName();
 }
 /* Re-draw after the pending suggestions changed. When the visible data did not change, only the parts that show
    the basket are rebuilt, so scroll positions and focus stay where they were. */
@@ -1999,7 +2012,7 @@ function renderPapers() {
         sel('proximity', 'Proximity', S.data.vocab.proximity.map(v => [v.key, v.label])),
         sel('verdict', 'Verdict', S.data.vocab.verdict.map(v => [v.key, v.label])),
         sel('evidence', 'Evidence', S.data.vocab.evidence.map(v => [v.key, v.label])),
-        h('button', { class: 'btn primary', type: 'button', text: '+ Suggest a new paper', onclick: () => select({ type: 'new', id: 'paper' }) })),
+        h('button', { class: 'btn primary', type: 'button', text: '+ Add your paper', onclick: () => select({ type: 'new', id: 'paper' }) })),
       h('p', { class: 'sec-p', id: 'pl-count' }),
       h('div', { class: 'tbl-wrap' }, h('table', { class: 'ptab', id: 'ptab' }))));
   fillPaperTable();
@@ -2156,6 +2169,9 @@ function panelPaper(id, fromNode) {
       h('button', { class: 'btn', type: 'button', text: 'Place it in a matrix', onclick: () => formPlacement({ paper: id }) }),
       fromNode ? h('button', { class: 'btn', type: 'button', text: 'Edit the map text', onclick: () => formNode(fromNode.id) }) : null,
       h('button', { class: 'btn ghost', type: 'button', text: 'Comment', onclick: () => formComment(`paper ${p.short} (${id})`) })));
+    // the badge only for a published paper: a pending one (shown with "Show my changes") is not listed yet
+    if (own(S.base.papers, id)) body.append(badgeBlock(id));
+    else body.append(h('p', { class: 'hint', text: 'Once your suggestion is published, this card offers its authors a badge for their project page.' }));
   });
 }
 function pendingNote(match, what) {
@@ -2190,6 +2206,23 @@ function matrixLinks(links) {
     return h('li', null, h('button', { type: 'button', class: 'go', onclick: act }, h('span', { text: `${tableName(l.table)} · ${label}` }), h('span', { class: 'cnt', text: `${count} placements` })));
   })));
 }
+/* "Is this your paper?": the "Mentioned in Awesome" badge for the authors, linking back to the paper's card */
+function badgeBlock(id) {
+  const name = siteName(), card = siteUrl() + '#papers/paper/' + encodeURIComponent(id);
+  const code = `[![Mentioned in ${name.replace(/[\[\]]/g, '')}](https://awesome.re/mentioned-badge.svg)](${card})`;
+  const note = h('span', { class: 'copied', role: 'status' });
+  const copy = () => {
+    // cleared first, so a second copy is announced again
+    const done = () => { note.textContent = ''; setTimeout(() => { note.textContent = 'Copied.'; clearTimeout(copy.t); copy.t = setTimeout(() => { note.textContent = ''; }, 4000); }, 50); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(code).then(done, () => fallbackCopy(code, done)); else fallbackCopy(code, done);
+  };
+  return h('div', { class: 'blk badge-blk' },
+    h('p', { class: 'dg-l', text: 'Is this your paper?' }),
+    h('p', { class: 'sec-p' }, 'It is listed in ', h('a', { href: listUrl(), target: '_blank', rel: 'noopener noreferrer', text: name }), '. Show it on your project page or README with this badge (Markdown):'),
+    h('img', { src: 'https://awesome.re/mentioned-badge.svg', alt: `Mentioned in ${name}`, height: '20', loading: 'lazy' }),
+    h('pre', { class: 'code-snip', text: code }),
+    h('div', { class: 'badge-row' }, h('button', { class: 'btn small', type: 'button', text: 'Copy the badge', onclick: copy }), note));
+}
 function panelNode(id) {
   const n = S.I.nodes[id];
   if (n.kind === 'paper' && n.paper && P(n.paper)) { panelPaper(n.paper, n); return; }
@@ -2221,7 +2254,7 @@ function panelNode(id) {
       h('button', { class: 'btn primary', type: 'button', text: 'Suggest an edit', onclick: () => formNode(id) }),
       n.kind !== 'note' && (S.I.depth[id] || 0) < 5 ? h('button', { class: 'btn', type: 'button', text: n.kind === 'chain' ? 'Add a question to this column' : 'Add a question or idea below', onclick: () => formAddNode(id) }) : null,
       n.kind !== 'note' && n.kind !== 'chain' && (S.I.depth[id] || 0) < 5 ? h('button', { class: 'btn', type: 'button', text: 'Attach a paper below', onclick: () => formAttachPaper(id) }) : null,
-      n.kind !== 'note' && n.kind !== 'chain' && (S.I.depth[id] || 0) < 5 ? h('button', { class: 'btn', type: 'button', text: 'Suggest a new paper below', onclick: () => select({ type: 'new', id: 'paper^' + id }) }) : null,
+      n.kind !== 'note' && n.kind !== 'chain' && (S.I.depth[id] || 0) < 5 ? h('button', { class: 'btn', type: 'button', text: 'Add a paper below', onclick: () => select({ type: 'new', id: 'paper^' + id }) }) : null,
       h('button', { class: 'btn ghost', type: 'button', text: 'Comment', onclick: () => formComment(`map box “${clipText(nodeTitle(n), 50)}” (${id})`) })));
   });
 }
@@ -2264,7 +2297,7 @@ function panelCell(tid, key) {
     if (nodes.length) body.append(blk('On the map', h('ul', { class: 'linklist' }, nodes.map(nid => h('li', null, h('button', { type: 'button', class: 'go', onclick: () => goNode(nid) }, icon(ICON.pin), nodeTitle(S.I.nodes[nid])))))));
     body.append(h('div', { class: 'actions' }, h('span', { class: 'lbl', text: 'Know a paper that belongs here?' }),
       h('button', { class: 'btn primary', type: 'button', text: 'Place a paper in this cell', onclick: () => formPlacement({ table: realT, row, col }) }),
-      h('button', { class: 'btn', type: 'button', text: 'Suggest a new paper', onclick: () => select({ type: 'new', id: `paper@${realT}:${row}|${col}` }) }),
+      h('button', { class: 'btn', type: 'button', text: 'Add a paper', onclick: () => select({ type: 'new', id: `paper@${realT}:${row}|${col}` }) }),
       h('button', { class: 'btn ghost', type: 'button', text: 'Comment', onclick: () => formComment(`cell ${CORE.cellLabel(S.data, realT, row, col)}`) })));
   });
 }
@@ -2411,7 +2444,7 @@ function formPaper(id) {
     addChanges([{ type: 'paper.update', id, fields }]);
   });
 }
-// newSpec: where "Suggest a new paper" should start from ('paper', 'paper@m1:row|col' or 'paper^<box id>')
+// newSpec: where "Add a new paper" should start from ('paper', 'paper@m1:row|col' or 'paper^<box id>')
 function paperPicker(id, value, newSpec = 'paper') {
   const wrap = h('div', { class: 'field' });
   const list = h('datalist', { id: id + '-list' }, Object.entries(S.eff.papers).sort((a, b) => cmp(a[1].short, b[1].short)).map(([pid, p]) => h('option', { value: `${p.short} · ${pid}` })));
@@ -2419,7 +2452,7 @@ function paperPicker(id, value, newSpec = 'paper') {
   const input = h('input', { id, list: id + '-list', value: cur, placeholder: 'Type a paper name…', autocomplete: 'off' });
   wrap.append(h('label', { for: id, text: 'Paper' }), input, list,
     h('div', { class: 'np-row' }, h('span', { class: 'hint', text: 'Not in the list?' }),
-      h('button', { class: 'btn small', type: 'button', text: 'Suggest a new paper', onclick: () => select({ type: 'new', id: newSpec }) })));
+      h('button', { class: 'btn small', type: 'button', text: 'Add a new paper', onclick: () => select({ type: 'new', id: newSpec }) })));
   wrap.read = () => { const m = /·\s*(p[a-z0-9]+)\s*$/.exec(input.value); if (m && S.eff.papers[m[1]]) return m[1]; const hit = Object.entries(S.eff.papers).find(([, p]) => p.short.toLowerCase() === input.value.trim().toLowerCase()); return hit ? hit[0] : null; };
   return wrap;
 }
@@ -2535,9 +2568,9 @@ function panelNewPaper(spec) {
   const pre = m ? { table: m[1], row: m[2], col: m[3] } : {};
   const nb = /\^([^@^]+)$/.exec(spec || ''); // opened from a map box: place the paper below it
   const preNode = nb && S.eff.map.nodes.some(x => x.id === nb[1]) ? nb[1] : '';
-  const intro = 'Fill in what you know. The coding follows the definitions at the bottom of each matrix page.'
+  const intro = 'Fill in what you know. The coding follows the definitions at the bottom of each matrix page. Once published, the paper appears in the list of papers and in the Awesome list on GitHub, and on the map and in the matrices where you place it below.'
     + (preNode ? ` It will appear on the map below “${clipText(nodeTitle(S.eff.map.nodes.find(x => x.id === preNode)), 60)}”.` : '');
-  formShell('Suggest a new paper', 'Suggest a new paper', intro, form => {
+  formShell('Add a paper', 'Add a paper', intro, form => {
     paperFields(form, { status: 'preprint', proximity: 2, evidence: 'testbed', verdict: 'works' }, 'np-');
     form.append(h('p', { class: 'dg-l', text: 'Place it in a matrix (optional)' }));
     form._cells = cellPickers(form, pre, 'np-');
@@ -2754,6 +2787,8 @@ function renderSuggest() {
     put(title('Sent. Thank you!'),
       h('p', { class: 'okmsg', role: 'status' }, h('a', { href: S.sgSent.url, target: '_blank', rel: 'noopener noreferrer', text: `Your suggestion #${S.sgSent.number} is open for review ↗` })),
       h('p', { class: 'sec-p', text: 'That’s all: you don’t need to do anything else. Keep this link to follow replies; you will not get an e-mail.' }),
+      S.sgSent.hadPaper ? h('p', { class: 'sec-p' }, 'Once published, your paper also appears in the ', h('a', { href: listUrl(), target: '_blank', rel: 'noopener noreferrer', text: 'Awesome list on GitHub' }),
+        ', and its card on this site offers its authors a “Mentioned in Awesome” badge for their project page.') : null,
       left ? h('p', { class: 'sec-p', text: `${left} change${left > 1 ? 's' : ''} added while sending ${left > 1 ? 'are' : 'is'} still waiting: you can send ${left > 1 ? 'them' : 'it'} as a new suggestion.` }) : null,
       h('ol', { class: 'steps' },
         h('li', { text: 'The maintainer reads it on GitHub.' }),
@@ -2790,7 +2825,13 @@ function copyBasket() {
   const done = () => toast(CFG.contact ? `Copied. Paste it into an e-mail to ${CFG.contact}.` : 'Copied.');
   if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(done, () => fallbackCopy(txt, done)); else fallbackCopy(txt, done);
 }
-function fallbackCopy(txt, done) { const ta = h('textarea', { style: 'position:fixed;left:-9999px' }, txt); document.body.append(ta); ta.select(); try { document.execCommand('copy'); done(); } catch { toast('Copy failed. Select the text manually.'); } ta.remove(); }
+function fallbackCopy(txt, done) {
+  const back = document.activeElement;
+  const ta = h('textarea', { style: 'position:fixed;left:-9999px', readonly: true }, txt); document.body.append(ta); ta.select();
+  let ok = false; try { ok = document.execCommand('copy'); } catch { ok = false; }
+  ta.remove(); if (back && back.focus) back.focus({ preventScroll: true });
+  if (ok) done(); else toast('Copy failed. Select the text manually.');
+}
 /* Cloudflare Turnstile: the script loads once, one widget at a time, and its token is cleared as soon as it expires,
    fails or has been used, so the page never sends a dead token. S.onTs tells the Send button when a token is there. */
 let tsScript = null;
@@ -2853,7 +2894,7 @@ async function submitBasket(form) {
   const gone = new Set(sent.map(key));
   S.basket = S.basket.filter(b => !gone.has(key(b)));
   S.sending = false; S.preview = false; S.ts = ''; setReason(''); persist(); recompute();
-  S.sgSent = { number: out.number, url: out.url }; S.sgStep = 'done'; openPRs = {};
+  S.sgSent = { number: out.number, url: out.url, hadPaper: sent.some(b => b.change.type === 'paper.add') }; S.sgStep = 'done'; openPRs = {};
   history.replaceState({ sgStep: 'done' }, '', '#suggest'); S.lastHash = location.hash;
   rerender(); focusWizard();
 }
@@ -2973,7 +3014,7 @@ async function boot() {
     if (saved && Array.isArray(saved.basket)) { S.basket = saved.basket.filter(b => b && b.change && typeof b.change === 'object'); try { S.preview = sessionStorage.getItem('wtrc-preview') === '1'; } catch { S.preview = false; } S.tmpN = saved.tmpN || 0; }
     recompute();
     if (S.basketError) { S.preview = false; recompute(); }
-    const sub = $('#brand-sub'); if (S.data.meta && S.data.meta.subtitle) sub.textContent = S.data.meta.subtitle;
+    const sub = $('#brand-sub'); if (S.data.meta && S.data.meta.subtitle) { sub.textContent = S.data.meta.subtitle; sub.title = S.data.meta.subtitle; }
     initMapInput(); initSearch(); renderPreviewBar();
     route();
     $('#boot').remove();
