@@ -37,11 +37,12 @@
   --pub-bg:#E8F5EC; --pub-line:#248A3D; --lab-bg:#EEEEFB; --lab-line:#5856D6;
   --pre-bg:#FBEDE6; --pre-line:#C93400; --ws-bg:#F5EDFB; --ws-line:#AF52DE;
   --q-bg:#E8F2FE; --q-line:#0071E3; --q-ink:#003E80; --q-mark:#0071E3;
-  /* section levels, lightest at the top of a list: box, text, subtitle, "opens matrix cells" dot */
-  --sec-0:#FFFFFF; --sec-1:#E5E5EA; --sec-2:#C7C7CC; --sec-3:#48484A; --sec-4:#2C2C2E;
-  --sec-0-ink:#1D1D1F; --sec-1-ink:#1D1D1F; --sec-2-ink:#1D1D1F; --sec-3-ink:#FFFFFF; --sec-4-ink:#FFFFFF;
-  --sec-0-sub:#68686D; --sec-1-sub:#424245; --sec-2-sub:#3A3A3C; --sec-3-sub:#D1D1D6; --sec-4-sub:#D1D1D6;
-  --sec-0-dot:#0066CC; --sec-1-dot:#0066CC; --sec-2-dot:#0058B9; --sec-3-dot:#64B5FF; --sec-4-dot:#64B5FF;
+  /* section levels: box, text, subtitle, "opens matrix cells" dot. The top of a list stands out most and each level
+     below fades toward the page: here dark chapters, lighter sub-chapters (never white, the colour of paper cards) */
+  --sec-0:#2C2C2E; --sec-1:#545458; --sec-2:#8E8E93; --sec-3:#C7C7CC; --sec-4:#E5E5EA;
+  --sec-0-ink:#FFFFFF; --sec-1-ink:#FFFFFF; --sec-2-ink:#1D1D1F; --sec-3-ink:#1D1D1F; --sec-4-ink:#1D1D1F;
+  --sec-0-sub:#D1D1D6; --sec-1-sub:#E5E5EA; --sec-2-sub:#1D1D1F; --sec-3-sub:#3A3A3C; --sec-4-sub:#424245;
+  --sec-0-dot:#64B5FF; --sec-1-dot:#8CC4FF; --sec-2-dot:#003E80; --sec-3-dot:#0058B9; --sec-4-dot:#0066CC;
   --note-bg:#FFFFFF; --hit:#FFCC00; --ok:#1D7A35; --bad:#D70015;
   --shadow:0 1px 2px #0000000A, 0 2px 8px #0000000D; --shadow-card:2px 4px 12px #00000014; --shadow-lg:0 4px 12px #0000000F, 0 20px 50px #0000001F;
   --seg-shadow:0 1px 3px #0000001F, 0 0 0 .5px #0000000A;
@@ -1464,7 +1465,7 @@ function renderLegend() {
   const row = (sw, txt) => dl.append(h('dt', null, sw), h('dd', { text: txt }));
   row(h('span', { class: 'sw chain' }), 'Columns: the links of the chain, Workload → Trajectory → Resources → Capacity');
   row(h('span', { class: 'sw lanes' }), 'Lanes: ' + S.data.map.lanes.map(l => l.label.toLowerCase()).join(', '));
-  row(h('span', { class: 'sw dot' }), 'Concept. The top box of each list is white; each level below is darker: light grey, mid grey, then near black. Click any box to highlight everything below it; the blue dot opens cells of the matrices');
+  row(h('span', { class: 'sw dot' }), 'Concept. Its shade gives its level: the top box of each list stands out most, and each level below is a step closer to the page colour. Click any box to highlight everything below it; the blue dot opens cells of the matrices');
   row([h('span', { class: 'sw s-published' }), h('span', { class: 'sw s-lab-preprint' }), h('span', { class: 'sw s-preprint' }), h('span', { class: 'sw s-workshop' })],
     'Paper. Its coloured left edge gives its status: ' + S.data.vocab.status.map(s => s.label.toLowerCase()).join(', ') + '. These four colours mean nothing else on the map. Papers about both lanes appear twice');
   row(h('span', { class: 'sw q' }), 'Gap, in blue: an open question or idea for the thesis');
@@ -2643,6 +2644,7 @@ function renderSuggest() {
 
   const panel = h('section', { class: 'panel wiz-panel', 'aria-labelledby': 'wiz-h' });
   wiz.append(panel);
+  const put = (...kids) => panel.append(...kids.filter(k => k != null && k !== false)); // append(null) would print "null"
   const title = text => h('h2', { id: 'wiz-h' }, S.sgStep === 'done' ? null : h('span', { class: 'wiz-of', text: `Step ${S.sgStep} of 3` }), text);
   // the main button comes first (first on phones, on the right on wide screens), "Back" second
   const foot = (main, second) => h('div', { class: 'wiz-foot' }, main, second || null);
@@ -2674,17 +2676,17 @@ function renderSuggest() {
         h('button', { class: 'btn small', type: 'button', text: 'Open the matrices', onclick: () => go('m1') }),
         h('button', { class: 'btn small', type: 'button', text: 'Open the list of papers', onclick: () => go('papers') }))) : null;
     const next = foot(h('button', { class: 'btn primary', type: 'button', text: 'Next: say why →', disabled: !n || !!S.basketError, onclick: () => goStep(2) }));
-    panel.append(title(n ? `Your changes (${n})` : 'What would you like to change?'));
+    put(title(n ? `Your changes (${n})` : 'What would you like to change?'));
     if (S.basketError) {
-      panel.append(h('p', { class: 'err', role: 'alert', text: `One of your changes no longer matches the current version of the site${S.badIndex >= 0 ? ` (change ${S.badIndex + 1}, marked below)` : ''}: ${S.basketError}` }),
+      put(h('p', { class: 'err', role: 'alert', text: `One of your changes no longer matches the current version of the site${S.badIndex >= 0 ? ` (change ${S.badIndex + 1}, marked below)` : ''}: ${S.basketError}` }),
         S.badIndex >= 0 ? h('button', { class: 'btn small', type: 'button', text: 'Remove the outdated change', onclick: () => removeChange(S.badIndex) })
           : h('button', { class: 'btn small', type: 'button', text: 'Clear all my changes', onclick: clearAllChanges }));
     }
     if (!n) {
-      panel.append(h('p', { class: 'sec-p', text: 'Choose a kind of change. Each change you add waits here, on this computer, until you send it: you can collect several, then go on.' }), opts, help, next);
+      put(h('p', { class: 'sec-p', text: 'Choose a kind of change. Each change you add waits here, on this computer, until you send it: you can collect several, then go on.' }), opts, help, next);
     } else {
       const show = (v, isMarkup) => isMarkup ? readableMarkup(v) : String(v);
-      panel.append(h('p', { class: 'sec-p', text: 'Nothing is sent yet. Check your changes and remove any you do not want.' }),
+      put(h('p', { class: 'sec-p', text: 'Nothing is sent yet. Check your changes and remove any you do not want.' }),
         h('ol', { class: 'chg' }, S.basket.map((b, i) => h('li', { class: i === S.badIndex ? 'bad' : null },
           h('div', { class: 'h' }, h('span', { class: 'a', text: actionOf(b, i) }), h('button', { class: 'rm', type: 'button', text: 'Remove', 'aria-label': `Remove change ${i + 1}`, onclick: () => removeChange(i) })),
           i === S.badIndex ? h('p', { class: 'err', text: S.basketError }) : null,
@@ -2699,7 +2701,7 @@ function renderSuggest() {
     // a visitor who only left comments has already said what they mean: their comment becomes the reason
     const comments = S.basket.every(b => b.change.type === 'comment');
     if (comments && !reasonNow().trim()) setReason(S.basket.map(b => String(b.change.text || '')).join(' ').replace(/\s+/g, ' ').trim().slice(0, CORE.LIMITS.reason));
-    panel.append(title(comments ? 'Anything to add for the maintainer?' : 'Why are you suggesting this?'),
+    put(title(comments ? 'Anything to add for the maintainer?' : 'Why are you suggesting this?'),
       h('p', { class: 'sec-p', text: comments ? 'Your comment is used as the reason. You can keep it as it is, or add a sentence.'
         : `One or two sentences for the maintainer about your ${changes}: what is wrong or missing, and where the information comes from.` }));
     const form = h('form', { class: 'form', novalidate: true });
@@ -2722,11 +2724,11 @@ function renderSuggest() {
       setReason(reason.value); setName(name.value);
       goStep(3);
     });
-    panel.append(form);
+    put(form);
   } else if (S.sgStep === 3) {
     const reason = reasonNow().trim(), name = nameNow().trim();
     const edit = (k, what) => h('button', { class: 'btn ghost small', type: 'button', text: 'Edit', 'aria-label': `Edit ${what}`, disabled: S.sending, onclick: () => goStep(k) });
-    panel.append(title('Check and send'),
+    put(title('Check and send'),
       h('div', { class: 'wiz-sum' },
         h('div', { class: 'wiz-sum-h' }, h('span', { class: 'dg-l', text: `Your changes (${n})` }), edit(1, 'your changes')),
         h('ol', { class: 'wiz-list' }, S.basket.map((b, i) => h('li', null, h('b', { text: actionOf(b, i) }), (byChange[i] && byChange[i][0].target) ? ` · ${byChange[i][0].target}` : ''))),
@@ -2745,11 +2747,11 @@ function renderSuggest() {
     if (!configured) form.append(h('p', { class: 'sec-p small' }, 'Sending is not switched on for this copy of the site yet. ',
       CFG.contact ? ['You can copy your changes and e-mail them to ', h('a', { href: 'mailto:' + CFG.contact, text: CFG.contact }), ' (address: ', h('code', { text: CFG.contact }), ').'] : 'You can copy your changes to keep them.'));
     form.addEventListener('submit', e => { e.preventDefault(); submitBasket(form); });
-    panel.append(form, h('p', { class: 'sec-p small', text: 'After sending, your changes and your reason open as one pull request on GitHub. The maintainer reviews it, then publishes it or replies. Once published, the site updates within a minute or two.' }));
+    put(form, h('p', { class: 'sec-p small', text: 'After sending, your changes and your reason open as one pull request on GitHub. The maintainer reviews it, then publishes it or replies. Once published, the site updates within a minute or two.' }));
     if (configured && !S.sending) loadTurnstile(ts);
   } else {
     const left = S.basket.length;
-    panel.append(title('Sent. Thank you!'),
+    put(title('Sent. Thank you!'),
       h('p', { class: 'okmsg', role: 'status' }, h('a', { href: S.sgSent.url, target: '_blank', rel: 'noopener noreferrer', text: `Your suggestion #${S.sgSent.number} is open for review ↗` })),
       h('p', { class: 'sec-p', text: 'That’s all: you don’t need to do anything else. Keep this link to follow replies; you will not get an e-mail.' }),
       left ? h('p', { class: 'sec-p', text: `${left} change${left > 1 ? 's' : ''} added while sending ${left > 1 ? 'are' : 'is'} still waiting: you can send ${left > 1 ? 'them' : 'it'} as a new suggestion.` }) : null,
