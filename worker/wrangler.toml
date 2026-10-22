@@ -1,0 +1,25 @@
+# Only needed if you deploy from the command line (npx wrangler deploy).
+# With the Cloudflare dashboard, paste worker.js and set the same variables there instead.
+name = "research-map-suggestions"
+main = "worker.js"
+compatibility_date = "2025-09-01"
+
+[vars]
+GITHUB_REPO = "HPMP-L/InteractiveMap"
+GITHUB_BRANCH = "main"
+DATA_PATH = "data.json"
+# The site's address without the path (GitHub Pages serves the site at https://hpmp-l.github.io/InteractiveMap/).
+ALLOWED_ORIGINS = "https://hpmp-l.github.io"
+MAX_PER_HOUR = "6"
+MAX_OPEN = "40"
+
+# Recommended: a rate limit that Cloudflare enforces across all instances (6 suggestions per minute per visitor).
+# Remove the "#" on the four lines below to turn it on.
+# [[ratelimits]]
+# name = "RATE_LIMITER"
+# namespace_id = "1001"
+# simple = { limit = 6, period = 60 }
+
+# Secrets never go in this file. Type them in the terminal (or the dashboard), never in a chat or an e-mail:
+#   npx wrangler secret put GITHUB_TOKEN
+#   npx wrangler secret put TURNSTILE_SECRET     (required: the worker refuses suggestions without it)

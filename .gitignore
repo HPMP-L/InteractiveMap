@@ -1,0 +1,20 @@
+# Kept on this computer only, never sent to GitHub
+v1-backup/
+
+# Local tools and editors
+.claude/
+.vscode/
+.idea/
+
+# Secrets and local Cloudflare files (secrets go only into Cloudflare, see HOSTING.md)
+.env
+.env.*
+worker/.dev.vars
+.dev.vars
+.wrangler/
+node_modules/
+
+# System files
+Thumbs.db
+desktop.ini
+.DS_Store

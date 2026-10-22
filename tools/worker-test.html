@@ -1,0 +1,328 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Worker tests</title>
+<!-- Runs worker/worker.js against a simulated GitHub API. Serve the repository root (python -m http.server)
+     and open http://localhost:8000/tools/worker-test.html. Nothing is sent to GitHub. -->
+<pre id="out">running…</pre>
+<script src="../core.js"></script>
+<script type="module">
+const out = document.getElementById('out');
+const R = []; window.__R = R;
+window.addEventListener('error', e => { out.textContent = R.join('\n') + '\nERROR ' + e.message; });
+const original = await (await fetch('../data.json', { cache: 'no-store' })).text();
+const realFetch = window.fetch.bind(window);
+const gh = { blobs: {}, trees: {}, commits: { base: { tree: { sha: 'tree0' } } }, refs: {}, pulls: [], labels: [], open: [] };
+let n = 0;
+window.fetch = async (url, opts = {}) => {
+  url = String(url);
+  if (url === 'https://challenges.cloudflare.com/turnstile/v0/siteverify') {
+    // simulated Turnstile: the token names the answer to give
+    const tok = opts.body.get('response');
+    const answers = { good: { success: true, hostname: 'me.github.io', action: 'suggest' }, otherhost: { success: true, hostname: 'evil.example', action: 'suggest' },
+      otheraction: { success: true, hostname: 'me.github.io', action: 'login' }, noaction: { success: true, hostname: 'me.github.io', action: '' },
+      badsecret: { success: false, 'error-codes': ['invalid-input-secret'] } };
+    return new Response(JSON.stringify(answers[tok] || { success: false, 'error-codes': ['invalid-input-response'] }), { status: 200 });
+  }
+  if (url === 'https://api.github.com/user') {
+    // simulated token owners: the robot (normal), the repository owner, a token with too many rights
+    const a = opts.headers.Authorization, who = (login, scopes) => new Response(JSON.stringify({ login }), { status: 200, headers: { 'X-OAuth-Scopes': scopes } });
+    if (a.includes('OWNERTOKEN')) return who('Me', 'public_repo');
+    if (a.includes('BROADTOKEN')) return who('robot', 'public_repo, workflow');
+    if (a.includes('TESTTOKEN')) return who('robot', 'public_repo');
+    return new Response('{"message":"Bad credentials"}', { status: 401 });
+  }
+  if (!url.startsWith('https://api.github.com/')) return realFetch(url, opts);
+  const path = url.replace(/^https:\/\/api\.github\.com\/repos\/me\/map/, '');
+  const method = opts.method || 'GET';
+  const body = opts.body ? JSON.parse(opts.body) : null;
+  const ok = (o, s = 200) => new Response(typeof o === 'string' ? o : JSON.stringify(o), { status: s });
+  if (!opts.headers.Authorization.includes('TESTTOKEN')) return ok({ message: 'bad auth' }, 401);
+  if (method === 'GET' && path.startsWith('/git/ref/heads/main')) return ok({ object: { sha: 'base' } });
+  if (method === 'GET' && path.startsWith('/contents/data.json?ref=base')) return ok(original);
+  if (method === 'GET' && path.startsWith('/pulls?')) return ok(gh.open);
+  if (method === 'GET' && path === '/git/commits/base') return ok(gh.commits.base);
+  if (method === 'POST' && path === '/git/blobs') { const sha = 'blob' + (++n); gh.blobs[sha] = body.content; return ok({ sha }, 201); }
+  if (method === 'POST' && path === '/git/trees') { const sha = 'tree' + (++n); gh.trees[sha] = body; return ok({ sha }, 201); }
+  if (method === 'POST' && path === '/git/commits') { const sha = 'c' + (++n); gh.commits[sha] = body; return ok({ sha }, 201); }
+  if (method === 'POST' && path === '/git/refs') { gh.refs[body.ref] = body.sha; return ok({}, 201); }
+  if (method === 'POST' && path === '/pulls') { gh.pulls.push(body); return ok({ number: gh.pulls.length, html_url: 'https://github.com/me/map/pull/' + gh.pulls.length }, 201); }
+  if (method === 'POST' && /\/issues\/\d+\/labels/.test(path)) { gh.labels.push(body); return ok([], 200); }
+  return ok({ message: 'unexpected ' + method + ' ' + path }, 404);
+};
+const { default: worker } = await import('../worker/worker.js?' + Date.now());
+// most tests run without Turnstile (DEV_ALLOW_UNSAFE); the anti-spam tests near the end switch it back on
+const env = { GITHUB_TOKEN: 'TESTTOKEN', GITHUB_REPO: 'me/map', ALLOWED_ORIGINS: 'https://me.github.io', MAX_PER_HOUR: '50', DEV_ALLOW_UNSAFE: '1' };
+let ipn = 0;
+async function send(payload, { origin = 'https://me.github.io', ip, method = 'POST', envOver, headers = {} } = {}) {
+  // browsers refuse to set Origin on a real Request, so hand the worker a request-shaped object
+  const bodyText = method === 'POST' ? (typeof payload === 'string' ? payload : JSON.stringify(payload)) : '';
+  const req = { method, url: 'https://w.example/suggest', headers: new Headers(Object.assign({ Origin: origin, 'content-type': 'application/json', 'CF-Connecting-IP': ip || ('10.0.0.' + (++ipn)) }, headers)), text: async () => bodyText };
+  const res = await worker.fetch(req, Object.assign({}, env, envOver || {}));
+  const text = await res.text();
+  let j = null; try { j = JSON.parse(text); } catch {}
+  return { status: res.status, body: j, acao: res.headers.get('Access-Control-Allow-Origin') };
+}
+const check = (name, cond, extra) => R.push((cond ? 'PASS ' : 'FAIL ') + name + (extra ? '  ' + JSON.stringify(extra).slice(0, 300) : ''));
+const lastCommit = () => Object.entries(gh.commits).pop()[1];
+const lastData = () => JSON.parse(gh.blobs[gh.trees[lastCommit().tree].tree.find(t => t.path === 'data.json').sha]);
+const base = { reason: 'Fixing a number taken from v1 of the paper.', name: 'Test Person', website: '', elapsed: 9000 };
+const data = JSON.parse(original);
+
+check('format round-trip is byte-identical', CORE.format(JSON.parse(original)) === original);
+
+let r = await send({ ...base, changes: [{ type: 'paper.update', id: 'p039', fields: { keyResult: data.papers.p039.keyResult + ' Test.' } }] });
+check('paper edit accepted', r.status === 200 && r.body.ok && r.body.number === 1, r);
+const pr1 = gh.pulls[0];
+const newText = gh.blobs[gh.trees[lastCommit().tree].tree[0].sha];
+const a = original.split('\n'), b = newText.split('\n');
+check('only one line changes in data.json', a.length === b.length && b.filter((l, i) => l !== a[i]).length === 1);
+check('PR targets main from a suggestion branch', pr1.base === 'main' && pr1.head.startsWith('suggestion/'), { head: pr1.head });
+check('PR body has the reason and before/after', pr1.body.includes('Fixing a number') && pr1.body.includes('Before:') && pr1.body.includes('After:'));
+check('commit message holds no visitor text', lastCommit().message === pr1.title, lastCommit().message);
+
+// rejected inputs
+const bad = async (name, payload, re, opts) => { const x = await send(payload, opts); check(name, x.status >= 400 && x.status < 500 && (!re || re.test(x.body && x.body.error)), x.body); };
+await bad('short reason rejected', { ...base, reason: 'short', changes: [{ type: 'comment', text: 'hello there' }] });
+await bad('honeypot rejected', { ...base, website: 'http://spam', changes: [{ type: 'comment', text: 'hello there' }] });
+await bad('too fast rejected', { ...base, elapsed: 500, changes: [{ type: 'comment', text: 'hello there' }] });
+await bad('missing elapsed rejected', { reason: base.reason, changes: [{ type: 'comment', text: 'hello there' }] });
+await bad('unknown change type rejected before GitHub', { ...base, changes: [{ type: 'bogus' }] });
+await bad('script tag rejected', { ...base, changes: [{ type: 'text.update', path: 'matrices/0/lede', value: 'x <scr' + 'ipt>alert(1)</scr' + 'ipt>' }] }, /not allowed/);
+await bad('non-allowlisted path rejected', { ...base, changes: [{ type: 'text.update', path: 'papers/p000/url', value: 'x' }] });
+await bad('javascript: url rejected', { ...base, changes: [{ type: 'paper.update', id: 'p000', fields: { url: 'javascript:alert(1)' } }] });
+await bad('javascript: link in prose rejected', { ...base, changes: [{ type: 'text.update', path: 'matrices/0/lede', value: 'Click <a href="javascript:alert(1)">here</a>' }] });
+await bad('link to an unknown paper rejected', { ...base, changes: [{ type: 'text.update', path: 'matrices/0/lede', value: 'See <a data-p="p9999">this</a>' }] });
+await bad('link to a new:N paper inside a text rejected', { ...base, changes: [{ type: 'text.update', path: 'matrices/0/lede', value: 'See <a data-p="new:1">this</a>' }] });
+{
+  const ok = CORE.apply(data, [{ type: 'text.update', path: 'matrices/0/lede', value: 'See <a data-p="p000">this</a>' }]);
+  check('link to a known paper accepted', ok.data.matrices[0].lede.includes('data-p="p000"'));
+  let e6 = '';
+  try { CORE.apply(data, [{ type: 'node.add', near: 'k3PXRv-HAhmkEIkEhYpQ-94', kind: 'question', text: 'Too deep' }]); } catch (e) { e6 = e.message; }
+  check('a box cannot go deeper than 5 levels', /5 levels/.test(e6), e6);
+}
+await bad('no-op edit rejected', { ...base, changes: [{ type: 'paper.update', id: 'p039', fields: { keyResult: data.papers.p039.keyResult } }] });
+await bad('bad enum rejected', { ...base, changes: [{ type: 'paper.update', id: 'p039', fields: { verdict: 'amazing' } }] });
+await bad('empty change list rejected', { ...base, changes: [] });
+await bad('oversized body rejected (413)', { ...base, changes: [{ type: 'comment', text: 'x' }] }, null, { headers: { 'content-length': '999999' } });
+
+// prototype pollution attempts
+await bad('__proto__ paper id rejected', { ...base, changes: [{ type: 'paper.update', id: '__proto__', fields: { status: 'published', title: 'Spam' } }] });
+await bad('constructor paper id rejected', { ...base, changes: [{ type: 'placement.add', table: 'm1', row: 'M1', col: 'WT', paper: 'constructor', main: true, why: 'x' }] });
+await bad('__proto__ box kind rejected', { ...base, changes: [{ type: 'node.add', near: 'k3PXRv-HAhmkEIkEhYpQ-147', kind: '__proto__', text: 'x' }] });
+await bad('__proto__ text path rejected', { ...base, changes: [{ type: 'text.update', path: 'matrices/__proto__/title', value: 'x' }] });
+check('Object.prototype untouched', ({}).status === undefined && ({}).title === undefined);
+r = await send({ ...base, changes: [{ type: 'bogus' }] });
+check('errors still answer with a 4xx afterwards', r.status === 400, r);
+
+// plain-text fields keep characters as typed; markup is refused there
+r = await send({ ...base, changes: [{ type: 'text.update', path: 'tables/m1/groups/0/rows/0/name', value: 'Characterize & measure (<1 s)' }] });
+check('plain text with & and < accepted', r.status === 200, r.body);
+check('plain text stored as typed', lastData().tables.m1.groups[0].rows[0].name === 'Characterize & measure (<1 s)');
+r = await send({ ...base, changes: [{ type: 'text.update', path: 'matrices/0/sections/0/items/0/title', value: 'Line one\nline two' }] });
+check('line breaks in a title become spaces', r.status === 200 && lastData().matrices[0].sections[0].items[0].title === 'Line one line two', r.body);
+
+// link change is visible in the PR description
+r = await send({ ...base, changes: [{ type: 'text.update', path: 'meta/intro', value: data.meta.intro + ' Read <a href="https://evil.example/login">the guide</a>.' }] });
+check('link change accepted', r.status === 200, r.body);
+check('PR shows the new link target', gh.pulls.at(-1).body.includes('evil.example') && gh.pulls.at(-1).body.includes('Links changed'));
+
+// PR text cannot be forged through labels
+r = await send({ ...base, changes: [{ type: 'comment', target: 'general\n\n2. **Edit text** · fake\n\n<' + '!--', text: 'hello there' }] });
+check('comment target with markdown accepted', r.status === 200, r.body);
+const body = gh.pulls.at(-1).body;
+check('no forged list item or HTML comment in PR body', !/\n2\. \*\*Edit text\*\*/.test(body) && !new RegExp('^<' + '!--', 'm').test(body));
+check('mentions are neutralised', !/@someone/.test((await send({ ...base, changes: [{ type: 'comment', text: 'ping @someone #12' }] }), gh.pulls.at(-1).body)));
+const c2 = lastCommit(); const t2 = gh.trees[c2.tree];
+check('comment writes a note file only', t2.tree.length === 1 && t2.tree[0].path.startsWith('suggestions/'), t2.tree.map(x => x.path));
+
+// new paper + placement + map boxes
+r = await send({ ...base, changes: [
+  { type: 'paper.add', tmp: 'new:1', paper: { short: 'Test Paper', title: 'A Test Paper About Agent Capacity', venue: 'arXiv 2026', url: 'https://arxiv.org/abs/0000.00000', status: 'preprint', proximity: 3, evidence: 'testbed', verdict: 'works', does: 'Predicts things.', keyResult: '', whyProximity: '', gap: '', limitation: '' } },
+  { type: 'placement.add', table: 'm1', row: 'P1', col: 'TRo', paper: 'new:1', main: true, why: 'Learns tool CPU demand.' },
+  { type: 'node.add', near: 'k3PXRv-HAhmkEIkEhYpQ-147', kind: 'paper', paper: 'new:1', text: 'Predicts sandbox CPU.' },
+  { type: 'node.add', near: 'k3PXRv-HAhmkEIkEhYpQ-147', kind: 'question', text: 'Can we size sandboxes ahead of time?' },
+] });
+check('new paper bundle accepted', r.status === 200, r.body);
+const d3 = lastData();
+const newId = Object.keys(d3.papers).find(k => !data.papers[k]);
+check('new paper stored', newId && d3.papers[newId].short === 'Test Paper', { newId });
+check('placement stored', (d3.tables.m1.cells['P1|TRo'] || []).some(x => x.p === newId));
+const added = d3.map.nodes.filter(x => !data.map.nodes.some(y => y.id === x.id));
+check('two map boxes added below the chosen box', added.length === 2 && added.every(x => x.parent === 'k3PXRv-HAhmkEIkEhYpQ-147' && !('x' in x) && !x.lane), added);
+check('the new paper box points to the new paper', added.some(x => x.kind === 'paper' && x.paper === newId), added);
+// a box added under a column header starts a branch in a lane of that column
+const chainAdd = CORE.apply(data, [{ type: 'node.add', near: 'XyNT2pzThIITGVIW4xnU-3', kind: 'question', lane: 'orchestration', text: 'Who pays for idle sandboxes?' }]);
+const cn = chainAdd.data.map.nodes.at(-1);
+check('box under a column header gets that lane and column', cn.lane === 'orchestration' && cn.column === 'R' && !cn.parent, cn);
+const chainAdd2 = CORE.apply(data, [{ type: 'node.add', near: 'XyNT2pzThIITGVIW4xnU-1', kind: 'question', lane: 'characterization', text: 'Spanning lane is not a column lane' }]);
+check('unknown or spanning lane falls back to the first lane', chainAdd2.data.map.nodes.at(-1).lane === 'execution', chainAdd2.data.map.nodes.at(-1));
+let threw = '';
+try { CORE.apply(data, [{ type: 'node.add', near: 'P0W3pyzijgSNqK4Qnqz1-60', kind: 'question', text: 'Under the bibliography' }]); } catch (e) { threw = e.message; }
+check('nothing can be added below the bibliography', /bibliography/.test(threw), threw);
+threw = '';
+try { CORE.apply(data, [{ type: 'node.add', near: 'k3PXRv-HAhmkEIkEhYpQ-26', kind: 'question', text: 'Under a note' }]); } catch (e) { threw = e.message; }
+check('nothing can be added below a note', /key insights/.test(threw), threw);
+const runs = [];
+for (let k = 0; k < 7; k++) { // warm runs, like a busy worker
+  const t0 = performance.now();
+  CORE.apply(data, Array.from({ length: 5 }, (_, i) => ({ type: 'node.add', near: 'k3PXRv-HAhmkEIkEhYpQ-1', kind: 'paper', paper: 'p040', text: 'Q' + i })));
+  runs.push(performance.now() - t0);
+}
+const ms = runs.sort((x, y) => x - y)[3];
+check('5 map boxes added quickly (median, warm)', ms < 10, { ms: Math.round(ms * 10) / 10 });
+await bad('more than 5 map boxes rejected', { ...base, changes: Array.from({ length: 6 }, (_, i) => ({ type: 'node.add', near: 'k3PXRv-HAhmkEIkEhYpQ-147', kind: 'question', text: 'Q' + i })) });
+await bad('duplicate title rejected', { ...base, changes: [{ type: 'paper.add', tmp: 'new:1', paper: { ...d3.papers[newId], title: data.papers.p000.title } }] });
+
+// origin, preflight, limits, configuration
+r = await send({ ...base, changes: [{ type: 'comment', text: 'hello there' }] }, { origin: 'https://evil.example' });
+check('other site refused (403)', r.status === 403, r);
+r = await send({ ...base, changes: [{ type: 'comment', text: 'origin typed with capitals' }] }, { envOver: { ALLOWED_ORIGINS: 'https://Me.GitHub.io/' } });
+check('allowed site compared without case', r.status === 200, r);
+r = await send(null, { method: 'OPTIONS' });
+check('preflight answered', r.status === 204 && r.acao === 'https://me.github.io', r);
+let codes = [];
+for (let i = 0; i < 4; i++) codes.push((await send({ ...base, changes: [{ type: 'comment', text: 'hello ' + i }] }, { ip: '2001:db8:1:2:' + i + '::1', envOver: { MAX_PER_HOUR: '3' } })).status);
+check('rate limit counts an IPv6 /64 as one visitor', codes.slice(0, 3).every(c => c === 200) && codes[3] === 429, codes);
+gh.open = Array.from({ length: 40 }, (_, i) => ({ head: { ref: 'suggestion/x' + i, repo: { full_name: 'attacker/map' } } }));
+r = await send({ ...base, changes: [{ type: 'comment', text: 'fork PRs do not count' }] });
+check('pull requests from forks do not block suggestions', r.status === 200, r.body);
+gh.open = Array.from({ length: 40 }, (_, i) => ({ head: { ref: 'suggestion/x' + i, repo: { full_name: 'me/map' } } }));
+r = await send({ ...base, changes: [{ type: 'comment', text: 'one more' }] });
+check('refuses while 40 suggestions wait for review', r.status === 429, r.body);
+gh.open = [];
+
+// canonical tags only
+await bad('uppercase link tag rejected', { ...base, changes: [{ type: 'text.update', path: 'matrices/0/lede', value: 'See <A href="https://example.org">this</A>.' }] });
+await bad('link with extra spaces rejected', { ...base, changes: [{ type: 'text.update', path: 'matrices/0/lede', value: 'See <a  href="https://example.org">this</a>.' }] });
+await bad('link with credentials rejected', { ...base, changes: [{ type: 'text.update', path: 'matrices/0/lede', value: 'See <a href="https://user:pw@example.org">this</a>.' }] });
+await bad('self-closing tag rejected', { ...base, changes: [{ type: 'text.update', path: 'matrices/0/lede', value: 'Line<br/>break' }] });
+
+// swapping link targets is reported
+const body0 = data.matrices[0].sections[0].items[0].body;
+const ps = [...body0.matchAll(/data-p="(p\d+)"/g)].map(m => m[1]);
+const swapped = body0.replace(`data-p="${ps[0]}"`, 'data-p="TMP"').replace(`data-p="${ps[1]}"`, `data-p="${ps[0]}"`).replace('data-p="TMP"', `data-p="${ps[1]}"`);
+r = await send({ ...base, changes: [{ type: 'text.update', path: 'matrices/0/sections/0/items/0/body', value: swapped }] });
+check('swapped paper links accepted and flagged', r.status === 200 && gh.pulls.at(-1).body.includes('Links changed'), r.body);
+
+// closing keywords and issue links are neutralised in title, body and commit
+r = await send({ ...base, name: 'Closes https://github.com/me/map/issues/9', changes: [{ type: 'comment', target: 'Fixes GH-8 and closes #7', text: 'hello there' }] });
+const pb = gh.pulls.at(-1).body + gh.pulls.at(-1).title + lastCommit().message;
+check('issue references neutralised', !/#7/.test(pb) && !/GH-8/.test(pb) && !/github\.com\/me/.test(pb), pb.slice(0, 200));
+
+// a new paper shows its full coding in the PR
+r = await send({ ...base, changes: [{ type: 'paper.add', tmp: 'new:1', paper: { short: 'Visible', title: 'A Paper Whose Coding Must Be Visible', venue: 'arXiv 2026', url: '', status: 'published', proximity: 3, evidence: 'production', verdict: 'works', does: 'HIDDEN-DOES text', keyResult: 'HIDDEN-KEY', whyProximity: '', gap: 'HIDDEN-GAP', limitation: '' } }] });
+const nb = gh.pulls.at(-1).body;
+check('new paper coding visible in PR', r.status === 200 && nb.includes('HIDDEN-DOES') && nb.includes('HIDDEN-GAP') && nb.includes('Proximity to the goal: 3') && nb.includes('Verdict: works'));
+
+// very long suggestions: description capped
+const long = 'x'.repeat(7500);
+r = await send({ ...base, changes: Array.from({ length: 12 }, (_, i) => ({ type: 'text.update', path: `matrices/0/sections/0/items/${i % 5}/body`, value: long + i })) });
+check('long suggestion accepted with a capped description', r.status === 200 && gh.pulls.at(-1).body.length <= 60200, { status: r.status, len: gh.pulls.at(-1) && gh.pulls.at(-1).body.length });
+
+// branch removed when the pull request cannot be opened
+const realPulls = gh.pulls.push.bind(gh.pulls); let deleted = 0;
+const prevFetch = window.fetch;
+window.fetch = async (url, opts = {}) => {
+  if (String(url).endsWith('/pulls') && opts.method === 'POST') return new Response('{"message":"Validation Failed"}', { status: 422 });
+  if (opts.method === 'DELETE' && /\/git\/refs\/heads\/suggestion\//.test(String(url))) { deleted++; return new Response(null, { status: 204 }); }
+  return prevFetch(url, opts);
+};
+r = await send({ ...base, changes: [{ type: 'comment', text: 'this PR will fail' }] });
+window.fetch = prevFetch; void realPulls;
+check('failed PR removes its branch', r.status === 502 && deleted === 1, { status: r.status, deleted });
+
+// IPv6 addresses written in short form still group by subscriber
+codes = [];
+for (const ip of ['2001:db8::1:2:3:4', '2001:db8::9:2:3:4', '2001:db8:0:0:5::1', '2001:db8::7:0:0:1']) codes.push((await send({ ...base, changes: [{ type: 'comment', text: 'v6 ' + ip }] }, { ip, envOver: { MAX_PER_HOUR: '3' } })).status);
+check('compressed IPv6 in one /56 share a limit', codes.slice(0, 3).every(c => c === 200) && codes[3] === 429, codes);
+r = await send({ ...base, changes: [{ type: 'comment', text: 'hello there' }] }, { envOver: { GITHUB_TOKEN: '' } });
+check('missing token gives a clear 503', r.status === 503 && /not configured/.test(r.body.error), r.body);
+
+// anti-spam and allowed sites are required on the real worker
+const live = { DEV_ALLOW_UNSAFE: '' };
+const pulls0 = gh.pulls.length;
+r = await send({ ...base, changes: [{ type: 'comment', text: 'no turnstile configured' }] }, { envOver: live });
+check('no Turnstile secret: refused with 503', r.status === 503 && /anti-spam/.test(r.body.error) && gh.pulls.length === pulls0, r.body);
+r = await send({ ...base, changes: [{ type: 'comment', text: 'no allowed origins' }] }, { envOver: { ...live, ALLOWED_ORIGINS: '', TURNSTILE_SECRET: 's' } });
+check('empty ALLOWED_ORIGINS: every site refused (403)', r.status === 403, r.body);
+r = await send({ ...base, changes: [{ type: 'comment', text: 'dev flag set to something else' }] }, { envOver: { DEV_ALLOW_UNSAFE: 'true' } });
+check('DEV_ALLOW_UNSAFE only works with the exact value "1"', r.status === 503, r.body);
+const ts = { ...live, TURNSTILE_SECRET: 's' };
+r = await send({ ...base, turnstile: 'good', changes: [{ type: 'comment', text: 'solved on our site' }] }, { envOver: ts });
+check('Turnstile solved on this site for a suggestion: accepted', r.status === 200, r.body);
+await bad('Turnstile missing: rejected', { ...base, changes: [{ type: 'comment', text: 'hello there' }] }, /anti-spam/, { envOver: ts });
+await bad('Turnstile failed: rejected', { ...base, turnstile: 'wrong', changes: [{ type: 'comment', text: 'hello there' }] }, /anti-spam/, { envOver: ts });
+await bad('Turnstile solved on another site: rejected', { ...base, turnstile: 'otherhost', changes: [{ type: 'comment', text: 'hello there' }] }, /anti-spam/, { envOver: ts });
+await bad('Turnstile solved for another form: rejected', { ...base, turnstile: 'otheraction', changes: [{ type: 'comment', text: 'hello there' }] }, /anti-spam/, { envOver: ts });
+await bad('Turnstile without the suggest action: rejected', { ...base, turnstile: 'noaction', changes: [{ type: 'comment', text: 'hello there' }] }, /anti-spam/, { envOver: ts });
+
+// "[skip ci]" in a visitor's text cannot switch off the checks
+r = await send({ ...base, reason: 'Testing [skip ci] in the reason, and skip-checks: true too.', changes: [{ type: 'comment', target: '[skip ci] [ci skip] [skip actions]', text: 'hello [no ci] there' }] });
+const prT = gh.pulls.at(-1);
+check('no "[skip ci]" in the commit message, PR title or PR body', r.status === 200 && !/[[\]]/.test(lastCommit().message) && !/[[\]]/.test(prT.title)
+  && !/\[(skip|ci|no|actions)/i.test(prT.body) && !/skip-checks/i.test(prT.body) && /skip ci/.test(prT.title), { title: prT.title, msg: lastCommit().message });
+
+// tags must be closed, in order, and links must have text
+await bad('unclosed link rejected', { ...base, changes: [{ type: 'text.update', path: 'matrices/0/lede', value: data.matrices[0].lede + ' Data in <a href="https://evil.example/dl">the replication package' }] }, /not closed/);
+await bad('wrong closing order rejected', { ...base, changes: [{ type: 'text.update', path: 'matrices/0/lede', value: 'A <b><i>mix</b></i> here.' }] }, /order/);
+await bad('stray closing tag rejected', { ...base, changes: [{ type: 'text.update', path: 'matrices/0/lede', value: 'A stray </b> here.' }] }, /does not match/);
+await bad('link inside a link rejected', { ...base, changes: [{ type: 'text.update', path: 'matrices/0/lede', value: 'See <a href="https://a.example">one <a href="https://b.example">two</a></a>.' }] }, /another link/);
+await bad('link without text rejected', { ...base, changes: [{ type: 'text.update', path: 'matrices/0/lede', value: 'See <a href="https://a.example"><b> </b></a> here.' }] }, /no text/);
+await bad('closing </br> rejected', { ...base, changes: [{ type: 'text.update', path: 'matrices/0/lede', value: 'Line<br></br>break' }] }, /no closing tag/);
+const noteId = data.map.nodes.find(n => n.kind === 'note').id;
+await bad('list item outside a list rejected', { ...base, changes: [{ type: 'node.update', id: noteId, html: '<li>alone</li>' }] }, /inside <ul> or <ol>/);
+const okNest = CORE.apply(data, [{ type: 'text.update', path: 'matrices/0/lede', value: 'Nested <b><i>bold italic</i></b> and <a href="https://example.org/a?x=1&amp;y=2">a link</a>.' }]);
+check('well-formed nested tags accepted', okNest.log.length === 1);
+
+// every text already on the site still passes the stricter rules
+const failures = [];
+const walk = (o, path) => {
+  if (typeof o === 'string') {
+    if (CORE.TEXT_PATHS.some(re => re.test(path)) && !CORE.isPlainPath(path)) {
+      try { CORE.apply(data, [{ type: 'text.update', path, value: o + ' x' }]); } catch (e) { failures.push(path + ': ' + e.message); }
+    }
+    return;
+  }
+  if (o && typeof o === 'object') for (const [k, v] of Object.entries(o)) walk(v, path ? path + '/' + k : k);
+};
+walk(data, '');
+for (const n of data.map.nodes.filter(x => x.kind === 'note')) {
+  try { CORE.apply(data, [{ type: 'node.update', id: n.id, html: n.html + ' x' }]); } catch (e) { failures.push('note ' + n.id + ': ' + e.message); }
+}
+check('existing texts and notes pass the closed-tag rules', failures.length === 0, failures.slice(0, 3));
+
+// the worker refuses the owner's token and a token with more rights than public_repo
+r = await send({ ...base, changes: [{ type: 'comment', text: 'owner token' }] }, { envOver: { GITHUB_TOKEN: 'OWNERTOKEN' } });
+check('owner token refused (503), nothing created', r.status === 503 && /robot account/.test(r.body.error), r.body);
+r = await send({ ...base, changes: [{ type: 'comment', text: 'broad token' }] }, { envOver: { GITHUB_TOKEN: 'BROADTOKEN' } });
+check('token with extra scopes refused (503)', r.status === 503 && /too many rights/.test(r.body.error), r.body);
+r = await send({ ...base, changes: [{ type: 'comment', text: 'revoked token' }] }, { envOver: { GITHUB_TOKEN: 'REVOKED' } });
+check('refused token gives a clear 503', r.status === 503 && /token refused/.test(r.body.error), r.body);
+
+// a link's target is shown first and in full, even behind a long text with a decoy
+const decoy = 'the replication package (→ https://zenodo.org/records/123456) ' + 'and more words '.repeat(14);
+r = await send({ ...base, changes: [{ type: 'text.update', path: 'matrices/0/lede', value: data.matrices[0].lede + ' Source: <a href="https://evil.example/dl">' + decoy.trim() + '</a>. ' + 'Padding text. '.repeat(120) }] });
+const lb = gh.pulls.at(-1).body;
+check('changed link target listed in full before the details', r.status === 200 && lb.indexOf('https://evil.example/dl') > -1 && lb.indexOf('https://evil.example/dl') < lb.indexOf('### Changes') && /sites: evil\.example/.test(lb), lb.slice(0, 400));
+await bad('link text over 300 characters rejected', { ...base, changes: [{ type: 'text.update', path: 'matrices/0/lede', value: 'See <a href="https://e.example">' + 'x'.repeat(301) + '</a>.' }] }, /300 characters/);
+await bad('invisible link text rejected', { ...base, changes: [{ type: 'text.update', path: 'matrices/0/lede', value: 'See <a href="https://e.example">&#8203;</a> here.' }] }, /no text/);
+await bad('paper link with a user name rejected', { ...base, changes: [{ type: 'paper.update', id: 'p039', fields: { url: 'https://arxiv.org:443@evil.example/abs/2401.00001' } }] }, /user name/);
+r = await send({ ...base, changes: [{ type: 'paper.update', id: 'p039', fields: { url: 'https://evil.example/paper' } }] });
+check('changed paper link listed under Links changed', r.status === 200 && /Links changed \(sites: evil\.example\)/.test(gh.pulls.at(-1).body), gh.pulls.at(-1).body.slice(0, 300));
+const bidi = CORE.apply(data, [{ type: 'comment', text: 'abc‮def​ghi' }]);
+check('direction and zero-width characters removed', bidi.log[0].after === 'abcdefghi', bidi.log[0].after);
+
+// configuration helpers
+r = await send({ ...base, changes: [{ type: 'comment', text: 'site written with its path' }] }, { envOver: { ALLOWED_ORIGINS: 'https://me.github.io/map/' } });
+check('ALLOWED_ORIGINS entry with the project path still works', r.status === 200, r.body);
+r = await send(null, { method: 'OPTIONS', origin: 'https://evil.example' });
+check('refused site gets no CORS permission (not the literal null)', r.status === 204 && r.acao === null, r);
+r = await send({ ...base, turnstile: 'badsecret', changes: [{ type: 'comment', text: 'hello there' }] }, { envOver: ts });
+check('wrong Turnstile secret reported as a configuration error (503)', r.status === 503 && /anti-spam key/.test(r.body.error), r.body);
+r = await send(null, { method: 'GET' });
+check('health check shows sites, anti-spam and test mode', r.status === 200 && Array.isArray(r.body.allowedSites) && r.body.allowedSites[0] === 'https://me.github.io' && r.body.unsafeTestMode === true && r.body.token === true, r.body);
+
+const fails = R.filter(l => l.startsWith('FAIL')).length;
+out.textContent = `${R.length - fails} passed, ${fails} failed\n\n` + R.join('\n') + '\n\nExample PR body:\n' + pr1.body;
+window.__done = R;
+</script>

@@ -1,0 +1,3 @@
+# Keep the project's line endings (LF) on every computer.
+# Without this, Git for Windows may rewrite data.json with CRLF and the format check would fail for no reason.
+* text=auto eol=lf

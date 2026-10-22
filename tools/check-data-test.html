@@ -1,0 +1,45 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>check-data test</title>
+<pre id="out">running…</pre>
+<script type="module">
+const get = async p => (await fetch('../' + p, { cache: 'no-store' })).text();
+const files = { 'data.json': await get('data.json'), 'core.js': await get('core.js') };
+const script = await get('tools/check-data.js');
+async function run(dataText) {
+  const logs = []; let code = 0;
+  const fs = { readFileSync: (p) => files[p.split('/').pop()] === undefined ? '' : (p.endsWith('data.json') ? dataText : files[p.split('/').pop()]), writeFileSync() {} };
+  const path = { resolve: () => '', join: (...a) => a.filter(Boolean).join('/') };
+  const vm = { runInThisContext: c => (0, eval)(c) };
+  const proc = { argv: [], exit: c => { code = c; throw new Error('__exit'); } };
+  const con = { log: (...a) => logs.push(a.join(' ')), error: (...a) => logs.push(a.join(' ')) };
+  const fn = new Function('require', '__dirname', 'process', 'console', script);
+  try { fn(m => ({ fs, path, vm }[m]), '', proc, con); } catch (e) { if (e.message !== '__exit') logs.push('THREW ' + e.stack); }
+  return { code, logs };
+}
+const out = [];
+const ok = await run(files['data.json']);
+out.push('clean data: exit ' + ok.code + ' :: ' + ok.logs.join(' | '));
+const bad = JSON.parse(files['data.json']);
+bad.tables.m1.cells['M1|WT'].push({ p: 'p999', main: true, why: 'x' });
+bad.papers.p000.verdict = 'great';
+// map tree: unknown parent, a loop, a box below a note, a root outside the lanes, a bad related box
+const N = id => bad.map.nodes.find(n => n.id === id);
+bad.map.nodes.push({ id: 'zz1', kind: 'question', text: 'orphan', parent: 'nope' });
+bad.map.nodes.push({ id: 'zz2', kind: 'question', text: 'a', parent: 'zz3' }, { id: 'zz3', kind: 'question', text: 'b', parent: 'zz2' });
+bad.map.nodes.push({ id: 'zz4', kind: 'question', text: 'under a note', parent: 'k3PXRv-HAhmkEIkEhYpQ-26' });
+bad.map.nodes.push({ id: 'zz5', kind: 'concept', text: 'no lane' });
+bad.map.nodes.push({ id: 'zz6', kind: 'concept', text: 'no column', lane: 'execution' });
+N('k3PXRv-HAhmkEIkEhYpQ-5').also = ['nowhere'];
+N('P0W3pyzijgSNqK4Qnqz1-60').lane = 'execution';
+bad.map.nodes.push({ id: 'zz7', kind: 'question', text: 'under a column header', parent: 'XyNT2pzThIITGVIW4xnU-1' });
+bad.map.nodes.push({ id: 'zz8', kind: 'concept', text: 'bottom lane with a column', lane: 'characterization', column: 'W' });
+bad.map.nodes.push({ id: 'zz9', kind: 'question', text: 'too deep', parent: 'k3PXRv-HAhmkEIkEhYpQ-94' });
+bad.map.lanes[1].links = [{ table: 'm3', col: 'nope' }];
+const r2 = await run(JSON.stringify(bad, null, 2) + '\n');
+out.push('broken data: exit ' + r2.code + ' :: ' + r2.logs.join(' | '));
+const r3 = await run(JSON.stringify(JSON.parse(files['data.json'])));
+out.push('minified data: exit ' + r3.code + ' :: ' + r3.logs.join(' | '));
+document.getElementById('out').textContent = out.join('\n\n');
+window.__done = out;
+</script>

@@ -1,0 +1,77 @@
+name: Suggestion files
+
+# A pull request that the repository owner did not open and update themself (a suggestion opened by the robot account,
+# a pull request from a fork, a collaborator's branch) may change only data.json and suggestions/*.md, and only towards
+# the default branch. This check runs from the copy of this file on the default branch, so a pull request cannot edit or
+# switch it off, and it never checks out or runs the pull request's code: it only reads the list of changed files.
+# Make it required in Settings → Rules → Rulesets (status check "suggestion-files", source GitHub Actions).
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, edited]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  suggestion-files:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Only data.json and suggestions/*.md may change
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          OWNER: ${{ github.repository_owner }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          PR: ${{ github.event.pull_request.number }}
+          AUTHOR_ASSOCIATION: ${{ github.event.pull_request.author_association }}
+          SENDER: ${{ github.event.sender.login }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          CHANGED: ${{ github.event.pull_request.changed_files }}
+        run: |
+          set -euo pipefail
+          # the owner's own work: opened by the owner, from a branch of this repository that is not a suggestion,
+          # and this run started by the owner (a push by anyone else to that branch makes the check run the strict way)
+          if [ "$AUTHOR_ASSOCIATION" = "OWNER" ] && [ "$SENDER" = "$OWNER" ] && [ "$HEAD_REPO" = "$REPO" ]; then
+            case "$HEAD_REF" in
+              suggestion/*) ;;
+              *) echo "Opened and updated by the repository owner: any file may change."; exit 0 ;;
+            esac
+          fi
+          if [ "$BASE_REF" != "$DEFAULT_BRANCH" ]; then
+            echo "A suggestion must target $DEFAULT_BRANCH, not $BASE_REF."; exit 1
+          fi
+          if [ "$CHANGED" -gt 5 ]; then
+            echo "A suggestion changes at most a few files; this one changes $CHANGED. Do not merge it."; exit 1
+          fi
+          gh api "repos/$REPO/pulls/$PR/files" --paginate --jq '.[] | [.filename, .status, (.previous_filename // "")] | @tsv' > "$RUNNER_TEMP/files.tsv"
+          now=$(gh api "repos/$REPO/pulls/$PR" --jq .head.sha)
+          if [ "$now" != "$HEAD_SHA" ]; then
+            echo "The pull request changed while it was being checked; the next run will check the new version."; exit 1
+          fi
+          if [ "$(wc -l < "$RUNNER_TEMP/files.tsv")" -ne "$CHANGED" ]; then
+            echo "The list of changed files is incomplete. Do not merge it."; exit 1
+          fi
+          # file names never count as workflow commands, whatever they contain
+          stop="stop-$(openssl rand -hex 16)"
+          echo "::stop-commands::$stop"
+          bad=0
+          while IFS=$'\t' read -r name status prev; do
+            ok=0
+            case "$name" in
+              data.json) ok=1 ;;
+              suggestions/*/*) ok=0 ;;
+              suggestions/*.md) ok=1 ;;
+            esac
+            if [ "$status" = "removed" ] || [ -n "$prev" ]; then ok=0; fi
+            if [ "$ok" -eq 0 ]; then echo "not allowed: $name ($status)"; bad=1; fi
+          done < "$RUNNER_TEMP/files.tsv"
+          echo "::$stop::"
+          if [ "$bad" -ne 0 ]; then
+            echo "This pull request changes files that a suggestion may not change. Do not merge it."
+            exit 1
+          fi
+          echo "Only data.json and suggestions/*.md change."
