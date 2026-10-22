@@ -10,9 +10,9 @@
   try { if (JSON.parse(localStorage.getItem('wtrc-theme')) === 'dark') document.documentElement.dataset.theme = 'dark'; } catch (e) { /* storage unavailable */ }
   window.SITE_CONFIG = {
     dataUrl: 'data.json',
-    suggestEndpoint: '',      // e.g. 'https://research-map-suggestions.<you>.workers.dev/suggest'
+    suggestEndpoint: 'https://research-map-suggestions.hayman-lotfy.workers.dev/suggest', // the suggestion Worker
     repo: 'HPMP-L/InteractiveMap', // GitHub repository of the site (shows the open suggestions)
-    turnstileSiteKey: 'research-map-suggestions.hayman-lotfy.workers.dev',     // required to send: Cloudflare Turnstile site key (anti-spam, no account for visitors)
+    turnstileSiteKey: '0x4AAAAAAFgojCMqIdNrHP9S',     // required to send: Cloudflare Turnstile site key (anti-spam, no account for visitors)
     contact: ''               // optional e-mail address shown when sending is off, e.g. 'name@university.edu'
   };
 </script>
