@@ -1,12 +1,17 @@
 # Kept on this computer only, never sent to GitHub
 v1-backup/
+# the maintainer's private notes, among them the setup guide (accounts, tokens, Cloudflare steps). No commit has ever
+# tracked this folder, so git never overwrites or deletes it when switching branches or pulling.
+/private/
+# the setup guide's old place, tracked by earlier commits: never add it again
+/HOSTING.md
 
 # Local tools and editors
 .claude/
 .vscode/
 .idea/
 
-# Secrets and local Cloudflare files (secrets go only into Cloudflare, see HOSTING.md)
+# Secrets and local Cloudflare files (secrets go only into Cloudflare, never into this repository)
 .env
 .env.*
 worker/.dev.vars

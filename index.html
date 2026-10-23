@@ -6,7 +6,7 @@
 <title>Awesome Agentic Capacity Planning</title>
 <meta name="description" content="Awesome Agentic Capacity Planning: a living map of research on the infrastructure demand of LLM agents, with an interactive map, three coding matrices and an open list of papers. Anyone can add a paper.">
 <script>
-  // Site settings. Fill these in once the suggestion worker is deployed (see HOSTING.md).
+  // Site settings. Fill these in once the suggestion worker is deployed (see the maintainer's setup guide, kept out of the repository).
   try { if (JSON.parse(localStorage.getItem('wtrc-theme')) === 'dark') document.documentElement.dataset.theme = 'dark'; } catch (e) { /* storage unavailable */ }
   window.SITE_CONFIG = {
     dataUrl: 'data.json',
@@ -460,13 +460,34 @@ button.n:focus-visible{outline:3px solid var(--accent); outline-offset:3px}
 .lod-far .n-note{display:flex; align-items:flex-start; background:color-mix(in srgb,var(--note-bg) 70%,transparent)}
 .lod-far .n-note > :not(.nt){display:none}
 .lod-far .n-note::after{display:none}
-.lod-far .n-note .nt{font-size:20px; line-height:1.05}
+.lod-far .n-note .nt{line-height:1.05}
 .lod-far .n-paper .tx{display:none}
 .lod-far .n-paper{justify-content:center}
 .lod-far .n-paper .pn{flex-wrap:wrap}
 .lod-far .n-paper .pn .pxd{display:none}
 .lod-far .n-paper .pn .vg{width:14px; height:14px}
 .lod-far .n-concept .s{display:none}
+/* zoomed out, titles grow by --tf, set per box by fitTitles(): as much as the box allows, never more (the boxes keep
+   the size the layout gave them). .tfx marks a box whose title grew: it gives the text its padding. */
+.n .tt{font-size:calc(1em * var(--tf,1))}
+.n-q .t{font-size:calc(1em * var(--tf,1))}
+.n-q .qm{width:calc(16px * var(--tf,1)); height:calc(16px * var(--tf,1)); font-size:calc(10.5px * var(--tf,1))}
+.n-paper .pn{font-size:calc(12px * var(--tf,1))}
+/* zoomed out, a note title keeps its size and grows like the others, never above the section it belongs to */
+.n-note .nt{font-size:calc(15.5px * var(--tf,1))}
+.n-bib b{font-size:calc(22px * var(--tf,1))}
+.lane-lbl{overflow:hidden}
+.lane-lbl .ln,.lod-far .lane-lbl .ln{font-size:calc(22px * var(--tf,1))}
+.n-concept.tfx,.n-concept.root.tfx{padding-top:2px; padding-bottom:2px}
+/* a growing title must not squeeze the description below it: rigid, it shows up as overflow and limits the title */
+.n-paper .tx,.n-note .nb{flex-shrink:0}
+.n-frame.tfx,.n-chain.tfx{padding-top:4px; padding-bottom:4px}
+.n-q.tfx,.n-paper.tfx{padding-top:3px; padding-bottom:3px}
+.tfx .tt{line-height:1.05}
+.n-chain.tfx .stg{margin-bottom:2px}
+.lane-lbl.tfx{padding:8px 10px}
+.lane-lbl.tfx .ln{line-height:1.02}
+.lod-far .n-bib span{display:none}
 .map-ui{position:absolute; z-index:5; display:flex; gap:6px}
 .map-zoom{right:max(14px,env(safe-area-inset-right,0px)); bottom:14px; flex-direction:column}
 .map-zoom .icon-btn{width:40px; height:40px; border-radius:50%; background:var(--surface); border:1px solid var(--rule); box-shadow:var(--shadow)}
@@ -474,7 +495,8 @@ button.n:focus-visible{outline:3px solid var(--accent); outline-offset:3px}
 .map-help{left:max(14px,env(safe-area-inset-left,0px)); top:14px; max-width:min(390px,calc(100% - 28px)); flex-direction:column; gap:12px; background:var(--surface); border:1px solid var(--rule); border-radius:24px; padding:20px 22px; box-shadow:var(--shadow-lg); max-height:calc(100% - 28px); overflow:auto}
 .map-help h2{font:600 23px/1.15 var(--display); letter-spacing:-.01em; margin:0; padding-right:30px}
 .map-help p{margin:0; font-size:13.5px; color:var(--ink-2)}
-.map-help .x{position:absolute; top:14px; right:14px}
+/* the × stays in view while the guide scrolls (on phones the guide covers the map until it is closed) */
+.map-help .x{position:sticky; top:0; z-index:1; flex:none; align-self:flex-end; margin:-6px -8px -36px 0}
 .map-help .x.icon-btn{width:30px; height:30px; border-radius:50%}
 .mlegend{display:grid; grid-template-columns:auto 1fr; gap:6px 10px; align-items:center; font-size:12.5px; color:var(--ink-2); margin:0}
 .mlegend dt{display:flex; gap:3px}
@@ -685,7 +707,11 @@ html{scroll-padding-top:calc(var(--hdr-h) + var(--bar-h, 0px) + 12px)}
 @media (max-width:350px){ .tools .np-s{position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap} #np-btn{padding-inline:12px} }
 /* the zoom buttons move clear of the open panel */
 @media (min-width:761px){ body.on-map:has(#drawer:not([hidden])) .map-zoom{right:calc(max(12px,env(safe-area-inset-right,0px)) + min(470px,100% - 24px) + 14px)} }
-@media (max-width:760px){ body.on-map:has(#drawer:not([hidden])) .map-zoom{top:14px; bottom:auto} body.on-map:has(#drawer:not([hidden])) .map-help{display:none} }
+@media (max-width:760px){ body.on-map:has(#drawer:not([hidden])) .map-zoom{top:14px; bottom:auto} }
+/* the guide stays open until the visitor closes it; only while a panel is open on a screen too narrow for both (below
+   1280px the map between them would be a strip) does it step aside, with its "Guide and legend" button, and both come
+   back when the panel closes */
+@media (max-width:1279px){ body.on-map:has(#drawer:not([hidden])) :is(.map-help,.map-reopen){display:none} }
 @media (pointer:coarse){
   .u{width:26px; height:26px} .units{gap:2px}
   .rm,.edit-pen{min-width:28px; min-height:28px; padding:5px 7px}
@@ -1180,6 +1206,7 @@ function layoutMap() {
   const d = S.data, world = $('#world'), els = S.mapEls, L = LAYOUT;
   const lod = [...world.classList].filter(c => c.startsWith('lod-'));
   lod.forEach(c => world.classList.remove(c));
+  resetTitles(); // the boxes are measured with their titles at the normal size
   $$('.cont', world).forEach(e => e.remove());
   const dep = id => Math.min(5, S.I.depth[id] || 0);
   const rowW = id => L.col - dep(id) * L.ind; // inside a column, each level is indented a little more
@@ -1369,7 +1396,7 @@ function layoutMap() {
   $$('.lane-band, .lane-lbl, .edges', world).forEach(e => e.remove());
   lanes.forEach((l, i) => {
     world.prepend(h('div', { class: 'lane-band ln-' + l.id + (i % 2 ? ' alt' : ''), style: `left:0;top:${laneY[l.id]}px;width:${MAP.W}px;height:${laneH[l.id]}px` }));
-    const lbl = h('button', { type: 'button', class: 'lane-lbl ln-' + l.id, dataset: { lane: l.id }, style: `left:24px;top:${laneY[l.id] + 24}px;width:${L.labelW - 48}px`, title: 'Highlight this lane' },
+    const lbl = h('button', { type: 'button', class: 'lane-lbl ln-' + l.id, dataset: { lane: l.id }, style: `left:24px;top:${laneY[l.id] + 24}px;width:${L.labelW - 48}px;max-height:${laneH[l.id] - 48}px`, title: 'Highlight this lane' },
       h('span', { class: 'lk', text: 'Lane' }), h('span', { class: 'ln', text: l.label }), l.desc ? h('span', { class: 'ld', text: l.desc }) : null);
     const first = [...world.children].find(el => el.dataset && el.dataset.id && laneOf(el.dataset.id) === l.id);
     world.insertBefore(lbl, first || null);
@@ -1419,15 +1446,16 @@ function layoutMap() {
   world.prepend(svg);
   $$('.lane-band', world).forEach(b => world.prepend(b));
   lod.forEach(c => world.classList.add(c));
+  if (S.mapv) applyTitles(S.mapv.k);
 }
 function nodeEl(n, isNew) {
   const base = { class: 'n', dataset: { id: n.id }, type: 'button' };
   let el;
   switch (n.kind) {
-    case 'group': el = h('button', Object.assign(base, { class: 'n n-band' }), n.text); break;
+    case 'group': el = h('button', Object.assign(base, { class: 'n n-band' }), h('span', { class: 'tt', text: n.text })); break;
     case 'chain': {
       const c = CHAIN_CLASS[firstLine(n.text)] || '';
-      el = h('button', Object.assign(base, { class: 'n n-chain ' + c }), c ? h('span', { class: 'stg', text: CHAIN_STAGE[c] }) : null, firstLine(n.text));
+      el = h('button', Object.assign(base, { class: 'n n-chain ' + c }), c ? h('span', { class: 'stg', text: CHAIN_STAGE[c] }) : null, h('span', { class: 'tt', text: firstLine(n.text) }));
       break;
     }
     case 'question':
@@ -1454,12 +1482,12 @@ function nodeEl(n, isNew) {
         tw ? h('span', { class: 'twin', text: 'also ' + tw }) : null);
       break;
     }
-    case 'framing': el = h('button', Object.assign(base, { class: 'n n-frame' }), n.text); break;
+    case 'framing': el = h('button', Object.assign(base, { class: 'n n-frame' }), h('span', { class: 'tt', text: n.text })); break;
     case 'bib': el = h('button', Object.assign(base, { class: 'n n-bib' }), h('b', { text: 'Bibliography' }), h('span', { text: `${Object.keys(S.data.papers).length} papers · open the list →` })); break;
     default: {
       const lines = String(n.text || '').split('\n');
       const dp = Math.min(4, S.I.depth[n.id] || 0);
-      el = h('button', Object.assign(base, { class: 'n n-concept d' + dp + (n.major || dp === 0 ? ' major' : '') + (n.links ? ' linked' : '') }), h('span', { text: lines[0] }), lines.length > 1 ? h('span', { class: 's', text: lines.slice(1).join(' ') }) : null);
+      el = h('button', Object.assign(base, { class: 'n n-concept d' + dp + (n.major || dp === 0 ? ' major' : '') + (n.links ? ' linked' : '') }), h('span', { class: 'tt', text: lines[0] }), lines.length > 1 ? h('span', { class: 's', text: lines.slice(1).join(' ') }) : null);
     }
   }
   const pp = n.paper && P(n.paper);
@@ -1503,12 +1531,17 @@ function renderLegend() {
     });
   });
   box.append(h('p', { class: 'dg-l', text: 'Go to an area' }), h('div', { class: 'areas' }, btns,
-    h('button', { type: 'button', class: 'btn small ghost', text: 'Whole map', onclick: () => fitMap(true) })));
+    h('button', { type: 'button', class: 'btn small ghost', text: 'Whole map', onclick: () => { guideAside(); fitMap(true); } })));
 }
 function focusCell(key) {
   const c = S.cells[key]; if (!c) return;
-  if ($('#viewport').clientWidth <= 1100) setHelp(false);
-  focusRect(c.x, c.y, c.w, c.h, true);
+  guideAside();
+  focusRect(c.x, c.y, c.w, c.h, true); // beside the guide when there is room for both
+}
+/* On a phone the guide covers the map: going to an area from it puts it aside, without remembering that (the visitor
+   did not close it, so it is back on the next visit). On wider screens it stays and the area is framed beside it. */
+function guideAside() {
+  if ($('#viewport').clientWidth <= 760 && !$('#map-help').hidden) setHelp(false);
 }
 function focusRect(x, y, w, hgt, animate) {
   const { w: vw, h: vh, x0 } = visibleArea(true);
@@ -1522,8 +1555,9 @@ function applyMapView(v, animate) {
   S.mapv = { k: v.k, x: v.x, y: v.y };
   world.classList.toggle('animate', !!animate);
   world.style.transform = `translate(${v.x}px,${v.y}px) scale(${v.k})`;
-  world.classList.toggle('lod-far', v.k < 0.42);
+  world.classList.toggle('lod-far', v.k < 0.42); // LOD_FAR
   world.classList.toggle('lod-mid', v.k >= 0.42 && v.k < 0.75);
+  applyTitles(v.k);
   $('#z-level').textContent = Math.round(v.k * 100) + '%';
   const vp = $('#viewport');
   let g = 22 * v.k; while (g < 8) g *= 2; // stay on the 22-unit grid, never denser than 8px
@@ -1532,6 +1566,89 @@ function applyMapView(v, animate) {
   if (animate) { clearTimeout(applyMapView.t); applyMapView.t = setTimeout(() => world.classList.remove('animate'), 520); }
 }
 const clampK = k => Math.min(2.2, Math.max(0.06, k));
+/* ---------- zoomed out, titles grow ----------
+   Each box keeps the size the layout gave it; its title grows as much as that box allows, measured, never more, so
+   nothing spills out. Headings (sections, links of the chain, lanes) may grow most; paper names and questions a
+   little, so the hierarchy stays readable. Peers share one size: the lane names, the four links of the chain. */
+const TF_STEPS = [1, 1.25, 1.5, 1.75, 2, 2.5];
+const TF_MAX = { paper: 1.4, question: 1.25, note: 1.4 };
+const LOD_FAR = 0.42; // below this zoom the boxes show names only (lod-far in applyMapView)
+// how much titles may grow at zoom k: nothing near 90%, then in steps up to 2.5 times at about a third
+const tfStep = k => TF_STEPS.reduce((s, x) => (0.9 / k >= x ? x : s), 1);
+// sizes are measured for a step and for what the boxes show at that zoom: a step can straddle LOD_FAR, where paper
+// descriptions and subtitles appear or disappear, so the two are measured apart
+const tfKey = k => { const s = tfStep(k); return s === 1 ? '1' : s + (k < LOD_FAR ? 'f' : 'm'); };
+function setTf(el, f) {
+  if (f > 1) { el.style.setProperty('--tf', String(f)); el.classList.add('tfx'); }
+  else { el.style.removeProperty('--tf'); el.classList.remove('tfx'); }
+}
+function titleTargets() {
+  const out = [];
+  Object.entries(S.mapEls || {}).forEach(([id, el]) => {
+    const n = S.I.nodes[id];
+    if (n && !el.hidden && el.isConnected) out.push({ el, id, kind: n.kind, group: n.kind === 'chain' ? 'chain' : '' });
+  });
+  $$('.lane-lbl', $('#world')).forEach(el => out.push({ el, id: '', kind: 'lane', group: 'lane' }));
+  return out;
+}
+const fitsBox = el => el.scrollHeight <= el.clientHeight + 1 && el.scrollWidth <= el.clientWidth + 1;
+const titlePx = el => { const t = el.querySelector('.tt, .n-q .t, .pn, .nt, .n-bib b, .ln'); return t ? parseFloat(getComputedStyle(t).fontSize) || 0 : 0; };
+const floor20 = f => Math.max(1, Math.floor(f * 20) / 20);
+/* the largest size (up to step) at which each title still fits its box: all at their largest, then a few rounds of
+   halving the gap for those that spilled over; each round writes every box, then reads every box (one layout a round).
+   Then the hierarchy: peers share one size, and no title ends larger than the one above it (its parent box, or the
+   lane names for the top of a branch). */
+function fitTitles(step) {
+  const items = titleTargets();
+  items.forEach(t => setTf(t.el, 1));
+  items.forEach(t => { t.base = titlePx(t.el); t.lo = 1; t.hi = Math.min(step, TF_MAX[t.kind] || step); });
+  items.forEach(t => setTf(t.el, t.hi));
+  items.forEach(t => { if (fitsBox(t.el)) t.lo = t.hi; });
+  for (let round = 0; round < 6; round++) {
+    const open = items.filter(t => t.hi - t.lo > 0.02);
+    if (!open.length) break;
+    open.forEach(t => { t.mid = (t.lo + t.hi) / 2; setTf(t.el, t.mid); });
+    open.forEach(t => { if (fitsBox(t.el)) t.lo = t.mid; else t.hi = t.mid; });
+  }
+  const peers = {};
+  items.forEach(t => { if (t.group) peers[t.group] = Math.min(peers[t.group] ?? Infinity, t.lo); });
+  items.forEach(t => { t.f = floor20(t.group ? peers[t.group] : t.lo); });
+  const byId = new Map(items.filter(t => t.id).map(t => [t.id, t]));
+  const lanes = items.filter(t => t.kind === 'lane' && t.base);
+  const lanePx = lanes.length ? Math.min(...lanes.map(t => t.base * t.f)) : Infinity;
+  items.filter(t => t.id && t.kind !== 'chain').sort((a, b) => (S.I.depth[a.id] || 0) - (S.I.depth[b.id] || 0)).forEach(t => {
+    const p = byId.get(S.I.parent[t.id]);
+    const cap = p ? p.base * p.f : lanePx;
+    if (t.base > 0 && Number.isFinite(cap)) t.f = floor20(Math.min(t.f, cap / t.base));
+  });
+  const sizes = new Map();
+  items.forEach(t => { sizes.set(t.el, t.f); setTf(t.el, t.f); });
+  return sizes;
+}
+/* called on every view change: cheap unless the key changes; new sizes are measured once the zoom has settled */
+function applyTitles(k) {
+  const tf = S.tf || (S.tf = { key: '1', far: false, cache: new Map() });
+  const key = tfKey(k), far = k < LOD_FAR;
+  clearTimeout(tf.timer);
+  if (key === tf.key) return;
+  if (key === '1') { titleTargets().forEach(t => setTf(t.el, 1)); tf.key = '1'; tf.far = false; return; }
+  const known = tf.cache.get(key);
+  if (known) { known.forEach((f, el) => setTf(el, f)); tf.key = key; tf.far = far; return; }
+  // sizes measured while descriptions were hidden may not fit once they show again: normal size until measured
+  if (tf.far && !far) { titleTargets().forEach(t => setTf(t.el, 1)); tf.key = '1'; tf.far = false; }
+  // a timer, not an animation frame: frames wait while the tab is in the background, and the measure needs none
+  tf.timer = setTimeout(() => {
+    // the map must be on screen to be measured; otherwise this runs again when it is shown
+    if (S.tf !== tf || !S.mapv || tfKey(S.mapv.k) !== key || !$('#world').getClientRects().length) return;
+    tf.cache.set(key, fitTitles(tfStep(S.mapv.k))); tf.key = key; tf.far = far;
+  }, 140);
+}
+/* before the layout measures the boxes: titles back to their normal size, and what was measured is forgotten */
+function resetTitles() {
+  if (S.tf) clearTimeout(S.tf.timer);
+  S.tf = { key: '1', far: false, cache: new Map() };
+  Object.values(S.mapEls || {}).forEach(el => setTf(el, 1));
+}
 function zoomAt(cx, cy, f, animate) {
   const v = S.mapv, k = clampK(v.k * f), r = k / v.k;
   applyMapView({ k, x: cx - (cx - v.x) * r, y: cy - (cy - v.y) * r }, animate);
@@ -1541,7 +1658,8 @@ function visibleArea(forFit) {
   const dr = $('#drawer'), help = $('#map-help');
   let w = vp.width, hgt = vp.height, x0 = 0;
   if (!dr.hidden) { const r = dr.getBoundingClientRect(); if (innerWidth > 760) w -= Math.max(0, vp.right - r.left); else hgt -= Math.max(0, vp.bottom - r.top); }
-  if (forFit && !help.hidden && vp.width > 1100) { x0 = help.getBoundingClientRect().right - vp.left + 12; w -= x0; }
+  // frame things beside the guide when it is shown (not on phones, where it covers the map until closed)
+  if (forFit && help.getClientRects().length && vp.width > 760) { x0 = help.getBoundingClientRect().right - vp.left + 12; w -= x0; }
   return { w: Math.max(120, w), h: Math.max(60, hgt), x0 };
 }
 function fitMap(animate) {
@@ -1566,10 +1684,15 @@ function focusSubtree(ids, animate = true) {
   if ((x2 - x1) * 0.42 <= w && (y2 - y1) * 0.42 <= hh) focusRect(x1, y1, x2 - x1, y2 - y1, animate);
   else focusNode(ids[0], animate);
 }
-function setHelp(on) {
+/* The guide is open until the visitor closes it (×), and their choice is remembered. Nothing else closes it.
+   (A new key: the old one, 'wtrc-help', was also set when a box was clicked.) */
+const GUIDE_KEY = 'wtrc-guide';
+function setHelp(on, remember) {
   const wasInside = $('#map-help').contains(document.activeElement);
-  $('#map-help').hidden = !on; $('#map-reopen').hidden = on; store.set('wtrc-help', on);
+  $('#map-help').hidden = !on; $('#map-reopen').hidden = on;
+  if (remember) store.set(GUIDE_KEY, on);
   if (!on && wasInside) $('#help-open').focus({ preventScroll: true });
+  if (on && remember) { const t = $('#help-title'); t.tabIndex = -1; t.focus({ preventScroll: true }); }
 }
 function initMapInput() {
   const vp = $('#viewport');
@@ -1609,12 +1732,11 @@ function initMapInput() {
   vp.addEventListener('click', e => {
     if (dragging) { e.stopPropagation(); e.preventDefault(); return; }
     const lane = e.target.closest('.lane-lbl');
-    if (lane) { if (!$('#map-help').hidden) setHelp(false); select({ type: 'lane', id: lane.dataset.lane }); return; }
+    if (lane) { select({ type: 'lane', id: lane.dataset.lane }); return; }
     const n = e.target.closest('.n[data-id]');
     if (!n) { if (S.sel) guard(() => go('map', null)); return; }
     const node = S.I.nodes[n.dataset.id];
     if (node.kind === 'bib') { go('papers'); return; }
-    if (!$('#map-help').hidden) setHelp(false);
     select({ type: 'node', id: node.id });
   }, true);
   vp.addEventListener('wheel', e => {
@@ -1640,8 +1762,10 @@ function initMapInput() {
   vp.addEventListener('focusin', e => {
     const n = e.target.closest('.n[data-id], .lane-lbl');
     if (!n || !e.target.matches(':focus-visible')) return;
-    const r = n.getBoundingClientRect(), vr = vp.getBoundingClientRect();
-    if (r.right < vr.left || r.left > vr.right || r.bottom < vr.top || r.top > vr.bottom) {
+    // the part of the map left visible by the guide and the panel: a box outside it, even partly, is brought into view
+    const r = n.getBoundingClientRect(), vr = vp.getBoundingClientRect(), va = visibleArea(true);
+    const left = vr.left + va.x0, top = vr.top;
+    if (r.left < left || r.right > left + va.w || r.top < top || r.bottom > top + va.h) {
       if (n.dataset.id) focusNode(n.dataset.id);
       else focusRect(parseFloat(n.style.left), parseFloat(n.style.top), n.offsetWidth, n.offsetHeight, true);
     }
@@ -1649,10 +1773,9 @@ function initMapInput() {
   $('#z-in').onclick = () => zoomAt(visibleArea().w / 2, visibleArea().h / 2, 1.3, true);
   $('#z-out').onclick = () => zoomAt(visibleArea().w / 2, visibleArea().h / 2, 1 / 1.3, true);
   $('#z-fit').onclick = () => fitMap(true);
-  const help = store.get('wtrc-help', innerWidth > 760);
-  setHelp(help);
-  $('#help-x').onclick = () => setHelp(false);
-  $('#help-open').onclick = () => setHelp(true);
+  setHelp(store.get(GUIDE_KEY, true) !== false);
+  $('#help-x').onclick = () => setHelp(false, true);
+  $('#help-open').onclick = () => setHelp(true, true);
   new ResizeObserver(() => { if (S.view !== 'map') return; if (!S.mapReady) initialFit(); else applyMapView(S.mapv, false); }).observe(vp);
 }
 function initialFit() {

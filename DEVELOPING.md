@@ -1,7 +1,9 @@
 # How the site works
 
 The [README](README.md) is the list itself. This page is for whoever maintains the site: what each file does, and how
-the list, the map and the suggestions fit together. Setting it up on GitHub and Cloudflare: [HOSTING.md](HOSTING.md).
+the list, the map and the suggestions fit together. Setting it up on GitHub and Cloudflare is described in the
+maintainer's own guide, which stays on the maintainer's computer: it is no longer tracked in this repository (older
+versions remain in its history).
 
 The site is an interactive map of the state of research on predicting the infrastructure demand of LLM agents: the chain
 **Workload → Trajectory → Resources → Capacity**, the papers that document it, the open questions, and three matrices that
@@ -87,3 +89,15 @@ In `data.json`, `map.lanes` lists the lanes, `map.columns` ties each column (W, 
 `also` lists related boxes, drawn as dotted links when one end is selected. To move a branch, change its `parent`
 (or its `lane` and `column`); `node tools/check-data.js` tells you if something no longer fits
 (without Node, open `tools/check-data-test.html` through the local preview).
+
+## The map view
+
+- **The guide** ("How to read the map") is open until the visitor closes it with ×; that choice is remembered in the
+  browser (`wtrc-guide`), and "Guide and legend" brings it back. Nothing else closes it. While a card is open on a screen
+  narrower than 1280px it steps aside, and comes back when the card closes. On phones, where it covers the map, going to
+  an area from it puts it aside without remembering that.
+- **Zoomed out, titles grow.** Every box keeps the size the layout gave it; `fitTitles()` measures, box by box, how
+  much its title can grow before anything spills out (titles, and the descriptions below them), up to a limit that rises
+  as you zoom out. Headings may grow most, paper names and questions a little; peers share one size (the lane names, the
+  four links of the chain), and no title ends larger than the one above it. Sizes are measured once per zoom step and
+  level of detail, after the zoom settles, and measured again whenever the map is laid out again.
