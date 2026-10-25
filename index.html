@@ -527,14 +527,10 @@ button.n:focus-visible{outline:3px solid var(--accent); outline-offset:3px}
 .sw.lv0{background:var(--sec-0)} .sw.lv1{background:var(--sec-1)} .sw.lv2{background:var(--sec-2)} .sw.lv3{background:var(--sec-3)} .sw.lv4{background:var(--sec-4)}
 .ckey{list-style:none; margin:0; padding:0; display:grid; gap:6px; font-size:13.5px; line-height:1.35; color:var(--ink-2)}
 .ckey li{display:flex; align-items:center; gap:9px; min-width:0}
-.ckey li > span:not(.sw):not(.lvs):not(.this):not(.bdot){min-width:0}
+.ckey li > span:not(.sw):not(.bdot){min-width:0}
 .ckey li.on{color:var(--ink); font-weight:600}
 .ckey .sw{flex:none}
 .ckey .sw.s-published,.ckey .sw.s-lab-preprint,.ckey .sw.s-preprint,.ckey .sw.s-workshop{height:20px; width:16px; border-radius:2px 5px 5px 2px}
-.ckey .this{flex:none; margin-left:auto; font:600 11px/1.6 var(--sans); color:var(--accent); border:1px solid currentColor; border-radius:999px; padding:0 7px; white-space:nowrap}
-.ckey .lvs{flex:none; display:inline-flex; gap:3px}
-.ckey .lvs .sw{width:14px}
-.ckey .lvs .sw.cur{outline:2px solid var(--accent); outline-offset:1px}
 .ckey .bdot{flex:none; width:22px; display:grid; place-items:center} .ckey .bdot::after{content:""; width:7px; height:7px; border-radius:50%; background:var(--accent)}
 .dr .ckey-note{margin:2px 0 0; font-size:12.5px; color:var(--muted)}
 .dr .chipkey{display:flex; flex-wrap:wrap; gap:5px 12px; align-items:center; margin:6px 0 0; font-size:12.5px; color:var(--muted)}
@@ -2412,20 +2408,21 @@ function openDrawer(sel, keepEdit) {
 /* The colour code of the map, recalled in the side panel for what was clicked: what its colour means, among the others */
 const STATUS_LOOK = { published: 'Green edge', 'lab-preprint': 'Indigo double edge', preprint: 'Orange dashed edge', workshop: 'Purple dotted edge' };
 const proxDots = k => h('span', { class: 'pxd', 'aria-hidden': 'true' }, [3, 2, 1].map(i => h('i', { class: k >= i ? 'on' : '' }))); // filled from the right, as on the map
+// only the colour of the paper that was clicked, not the whole key (the guide on the map has that)
 function paperColours(p) {
+  const s = S.data.vocab.status.find(x => x.key === p.status);
+  if (!s) return null;
   return blk('Colour on the map', h('div', null,
-    h('ul', { class: 'ckey' }, S.data.vocab.status.map(s => h('li', { class: s.key === p.status ? 'on' : null },
-      h('span', { class: 'sw s-' + s.key, 'aria-hidden': 'true' }),
-      h('span', { text: `${STATUS_LOOK[s.key] || 'Edge'}: ${s.label.toLowerCase()}` }),
-      s.key === p.status ? h('span', { class: 'this', text: 'this paper' }) : null))),
-    h('p', { class: 'ckey-note', text: 'On the map, the left edge of a paper gives its publication status; these colours mean nothing else. Its symbol gives the verdict and its dots the proximity to the goal, as in the labels above.' })));
+    h('ul', { class: 'ckey' }, h('li', { class: 'on' }, h('span', { class: 'sw s-' + s.key, 'aria-hidden': 'true' }),
+      h('span', { text: `${STATUS_LOOK[s.key] || 'Edge'}: ${s.label.toLowerCase()}` }))),
+    h('p', { class: 'ckey-note', text: 'On the map, the colour of a paper’s left edge gives its publication status and means nothing else. Its symbol gives the verdict and its dots the proximity to the goal, as in the labels above.' })));
 }
 function boxColours(n) {
   const top = 'Top level of the map: the lanes, the links of the chain, the groups, the section at the top of each list, the bibliography and the problem framing share this colour.';
   let rows = [], note = '';
   if (n.kind === 'concept') {
     const d = Math.min(4, S.I.depth[n.id] || 0);
-    rows.push(h('li', { class: 'on' }, h('span', { class: 'lvs', 'aria-hidden': 'true' }, [0, 1, 2, 3, 4].map(i => h('span', { class: 'sw lv' + i + (i === d ? ' cur' : '') }))),
+    rows.push(h('li', { class: 'on' }, h('span', { class: 'sw lv' + d, 'aria-hidden': 'true' }),
       h('span', { text: d === 0 ? 'Section at the top of its list' : `Section, level ${d + 1} of its list` })));
     note = 'Its shade gives its level: the top box of each list stands out most, and each level below is a step closer to the page colour.';
     if (n.links && n.links.length) rows.push(h('li', null, h('span', { class: 'bdot', 'aria-hidden': 'true' }), h('span', { text: 'Blue dot: linked to cells of the matrices (see “In the matrices”)' })));
