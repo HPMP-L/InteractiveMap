@@ -101,3 +101,11 @@ In `data.json`, `map.lanes` lists the lanes, `map.columns` ties each column (W, 
   as you zoom out. Headings may grow most, paper names and questions a little; peers share one size (the lane names, the
   four links of the chain), and no title ends larger than the one above it. Sizes are measured once per zoom step and
   level of detail, after the zoom settles, and measured again whenever the map is laid out again.
+- **The overview.** Zoomed out (below 50%), the map is laid out again with its sections only: lanes, the links of
+  the chain and the section boxes, in larger type, each saying how many papers and questions sit just below it. Papers,
+  questions and key insights come back past 75% (the gap between the two keeps it from switching back and forth). While
+  zooming, the section nearest the pointer stays in place; "Whole map", "Go to an area", clicking a box or opening a
+  paper choose the layout that suits what they show (`frame()` in `index.html`).
+- **Colours, recalled.** The side panel of a box says what its colour means on the map ("Colour on the map"): the
+  status edge of a paper among the four, the shade of a section among the levels and its blue dot, the blue of a
+  question, the colour shared by the top level. Panels that list papers as chips explain their shade.

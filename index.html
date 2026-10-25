@@ -488,6 +488,14 @@ button.n:focus-visible{outline:3px solid var(--accent); outline-offset:3px}
 .lane-lbl.tfx{padding:8px 10px}
 .lane-lbl.tfx .ln{line-height:1.02}
 .lod-far .n-bib span{display:none}
+/* the overview, far out: the sections only, laid out again without the papers, questions and key insights, in
+   larger type, each saying what it holds below it */
+.n .ov{display:none}
+.overview .n .ov{display:block; font:500 calc(11.5px * var(--tf,1))/1.25 var(--sans); opacity:.78}
+.overview .n-band .ov,.overview .n-frame .ov{margin-left:10px}
+.overview .n .tt{font-size:calc(1.45em * var(--tf,1))}
+.overview .n-chain .tt{font-size:calc(1.3em * var(--tf,1))}
+.overview .n-concept .s{display:none}
 .map-ui{position:absolute; z-index:5; display:flex; gap:6px}
 .map-zoom{right:max(14px,env(safe-area-inset-right,0px)); bottom:14px; flex-direction:column}
 .map-zoom .icon-btn{width:40px; height:40px; border-radius:50%; background:var(--surface); border:1px solid var(--rule); box-shadow:var(--shadow)}
@@ -515,6 +523,25 @@ button.n:focus-visible{outline:3px solid var(--accent); outline-offset:3px}
 .sw.dot{width:36px; position:relative; background:linear-gradient(90deg,var(--sec-0) 0 25%,var(--sec-1) 0 50%,var(--sec-2) 0 75%,var(--sec-3) 0)}
 .sw.dot::after{background:var(--sec-3-dot) !important}
 .sw.dot::after{content:""; position:absolute; top:2px; right:2px; width:5px; height:5px; border-radius:50%; background:var(--accent)}
+/* "Colour on the map" in the side panel: the colour code recalled for the box that was clicked */
+.sw.lv0{background:var(--sec-0)} .sw.lv1{background:var(--sec-1)} .sw.lv2{background:var(--sec-2)} .sw.lv3{background:var(--sec-3)} .sw.lv4{background:var(--sec-4)}
+.ckey{list-style:none; margin:0; padding:0; display:grid; gap:6px; font-size:13.5px; line-height:1.35; color:var(--ink-2)}
+.ckey li{display:flex; align-items:center; gap:9px; min-width:0}
+.ckey li > span:not(.sw):not(.lvs):not(.this):not(.bdot){min-width:0}
+.ckey li.on{color:var(--ink); font-weight:600}
+.ckey .sw{flex:none}
+.ckey .sw.s-published,.ckey .sw.s-lab-preprint,.ckey .sw.s-preprint,.ckey .sw.s-workshop{height:20px; width:16px; border-radius:2px 5px 5px 2px}
+.ckey .this{flex:none; margin-left:auto; font:600 11px/1.6 var(--sans); color:var(--accent); border:1px solid currentColor; border-radius:999px; padding:0 7px; white-space:nowrap}
+.ckey .lvs{flex:none; display:inline-flex; gap:3px}
+.ckey .lvs .sw{width:14px}
+.ckey .lvs .sw.cur{outline:2px solid var(--accent); outline-offset:1px}
+.ckey .bdot{flex:none; width:22px; display:grid; place-items:center} .ckey .bdot::after{content:""; width:7px; height:7px; border-radius:50%; background:var(--accent)}
+.dr .ckey-note{margin:2px 0 0; font-size:12.5px; color:var(--muted)}
+.dr .chipkey{display:flex; flex-wrap:wrap; gap:5px 12px; align-items:center; margin:6px 0 0; font-size:12.5px; color:var(--muted)}
+.sw.ext{border-left:4px solid var(--rule-2); height:20px; width:16px; border-radius:2px 5px 5px 2px}
+.chipkey > span{display:inline-flex; align-items:center; gap:6px}
+.chipkey .lead{flex-basis:100%}
+.pill .pxd{display:inline-flex; gap:2px} .pill .pxd i{width:5px; height:5px; border-radius:50%; background:currentColor; opacity:.3} .pill .pxd i.on{opacity:.95}
 .map-reopen{left:max(14px,env(safe-area-inset-left,0px)); top:14px}
 .map-reopen .btn{box-shadow:var(--shadow)}
 .map-fallback{position:absolute; inset:0; display:grid; place-items:center; padding:20px; text-align:center; color:var(--ink-2)}
@@ -1211,18 +1238,23 @@ function layoutMap() {
   const dep = id => Math.min(5, S.I.depth[id] || 0);
   const rowW = id => L.col - dep(id) * L.ind; // inside a column, each level is indented a little more
   const spanW = k => k * L.col + (k - 1) * L.colIn;
+  // the overview (far out) lays out the sections only: papers, questions and key insights are left out
+  const shown = id => !S.overview || ovShown(id);
+  const kids = id => kidsOf(id).filter(shown);
+  const rootsAt = key => (S.I.roots[key] || []).filter(shown);
+  S.layoutGen = (S.layoutGen || 0) + 1;
 
   // 1. measure every box at its width (one write pass, then one read pass)
   const SZ = {};
   const measure = pairs => {
-    pairs.forEach(([id, w]) => { const el = els[id]; el.style.width = w + 'px'; el.style.height = 'auto'; el.style.left = '0px'; el.style.top = '0px'; });
+    pairs.forEach(([id, w]) => { const el = els[id]; el.hidden = false; el.style.width = w + 'px'; el.style.height = 'auto'; el.style.left = '0px'; el.style.top = '0px'; });
     pairs.forEach(([id, w]) => { SZ[id] = { w, h: Math.ceil(els[id].offsetHeight) }; });
   };
-  measure(Object.keys(els).map(id => [id, S.I.nodes[id].kind === 'chain' ? CHAIN_W : dep(id) === 0 ? L.col : rowW(id)]));
+  measure(Object.keys(els).filter(shown).map(id => [id, S.I.nodes[id].kind === 'chain' ? CHAIN_W : dep(id) === 0 ? L.col : rowW(id)]));
 
   // 2. each root is a group: the root box on top, everything below it as an indented list
   //    flowed into 1 to 4 balanced columns
-  const rowsOf = root => { const out = [], seen = new Set([root]); const walk = id => kidsOf(id).forEach(k => { if (seen.has(k)) return; seen.add(k); out.push(k); walk(k); }); walk(root); return out; };
+  const rowsOf = root => { const out = [], seen = new Set([root]); const walk = id => kids(id).forEach(k => { if (seen.has(k)) return; seen.add(k); out.push(k); walk(k); }); walk(root); return out; };
   const partMemo = new Map();
   const partition = (root, rows, K) => {
     const key = root + '|' + K;
@@ -1292,25 +1324,41 @@ function layoutMap() {
 
   // 3. try several column heights and keep the map whose shape best fits a screen
   const lanes = d.map.lanes, cols = d.map.columns, inLanes = lanes.filter(l => !l.span);
-  const strip = cellFor(S.I.roots['|'] || [], Infinity, 99, true);
+  // the lane names first, measured in full: a lane is never shorter than its name box (its description included)
+  // the same buttons are kept from one layout to the next (the keyboard may be on one): created once per drawing
+  const laneLbl = {}, lblH = {};
+  lanes.forEach(l => {
+    let lbl = $$('.lane-lbl', world).find(x => x.dataset.lane === l.id);
+    if (!lbl) {
+      lbl = h('button', { type: 'button', class: 'lane-lbl ln-' + l.id, dataset: { lane: l.id }, style: `left:24px;top:0px;width:${L.labelW - 48}px`, title: 'Highlight this lane' },
+        h('span', { class: 'lk', text: 'Lane' }), h('span', { class: 'ln', text: l.label }), l.desc ? h('span', { class: 'ld', text: l.desc }) : null);
+      world.append(lbl);
+    }
+    setTf(lbl, 1); lbl.style.maxHeight = '';
+    laneLbl[l.id] = lbl;
+  });
+  $$('.lane-lbl', world).forEach(x => { if (laneLbl[x.dataset.lane] !== x) x.remove(); });
+  lanes.forEach(l => { lblH[l.id] = Math.ceil(laneLbl[l.id].offsetHeight); });
+  const laneMin = l => Math.max(120, lblH[l.id] + 48);
+  const strip = cellFor(rootsAt('|'), Infinity, 99, true);
   const top = strip.groups.length ? 24 + strip.h + 34 : 0;
   const cellW = c => c.k ? spanW(c.k) : 0;
   const plan = Hc => {
     const cells = {};
-    inLanes.forEach(l => cols.forEach(c => { cells[`${l.id}|${c.id}`] = cellFor(S.I.roots[`${l.id}|${c.id}`] || [], Hc); }));
+    inLanes.forEach(l => cols.forEach(c => { cells[`${l.id}|${c.id}`] = cellFor(rootsAt(`${l.id}|${c.id}`), Hc); }));
     const colW = {};
     cols.forEach(c => { colW[c.id] = Math.max(CHAIN_W + 40, L.col + 2 * L.cellPad, ...inLanes.map(l => cellW(cells[`${l.id}|${c.id}`]) + 2 * L.cellPad)); });
     let gridW = L.labelW + cols.reduce((s, c) => s + colW[c.id], 0) + (cols.length - 1) * L.colGap;
     lanes.filter(l => l.span).forEach(l => {
       const Kmax = Math.max(1, Math.floor((gridW - L.labelW - 2 * L.cellPad + L.colIn) / (L.col + L.colIn)));
-      const c = cells[`${l.id}|`] = cellFor(S.I.roots[`${l.id}|`] || [], Hc, Kmax, true);
+      const c = cells[`${l.id}|`] = cellFor(rootsAt(`${l.id}|`), Hc, Kmax, true);
       gridW = Math.max(gridW, L.labelW + cellW(c) + 2 * L.cellPad);
     });
     gridW = Math.max(gridW, 24 + cellW(strip));
     const laneH = {};
     lanes.forEach(l => {
       const hs = l.span ? [cells[`${l.id}|`].h] : cols.map(c => cells[`${l.id}|${c.id}`].h);
-      laneH[l.id] = Math.max(120, Math.max(...hs) + 2 * L.lanePad);
+      laneH[l.id] = Math.max(laneMin(l), Math.max(...hs) + 2 * L.lanePad);
     });
     const W = gridW + 40, H = top + L.headH + lanes.reduce((s, l) => s + laneH[l.id], 0) + 40;
     return { cells, colW, gridW, laneH, W, H, score: W * H * Math.exp(Math.abs(Math.log(W / H / L.aspect))) };
@@ -1327,7 +1375,7 @@ function layoutMap() {
   const cellH = c => c.shelves.reduce((s, x) => s + x.h, 0) + Math.max(0, c.shelves.length - 1) * L.groupGap;
   lanes.forEach(l => {
     const hs = l.span ? [cellH(cells[`${l.id}|`])] : cols.map(c => cellH(cells[`${l.id}|${c.id}`]));
-    laneH[l.id] = Math.max(120, Math.max(...hs) + 2 * L.lanePad);
+    laneH[l.id] = Math.max(laneMin(l), Math.max(...hs) + 2 * L.lanePad);
   });
   const colX = {}; let x = L.labelW;
   cols.forEach(c => { colX[c.id] = x; x += colW[c.id] + L.colGap; });
@@ -1393,13 +1441,13 @@ function layoutMap() {
   ghosts.forEach(gh => world.append(h('div', { class: 'cont', dataset: { for: gh.par }, style: `left:${gh.x}px;top:${gh.y}px;width:${gh.w}px`, text: '↳ ' + clipText(nodeTitle(S.I.nodes[gh.par]), 40) + ' (continued)' })));
 
   // 5. backdrop: lane bands, labels, column guides, chain arrows, connectors
-  $$('.lane-band, .lane-lbl, .edges', world).forEach(e => e.remove());
+  $$('.lane-band, .edges', world).forEach(e => e.remove());
   lanes.forEach((l, i) => {
     world.prepend(h('div', { class: 'lane-band ln-' + l.id + (i % 2 ? ' alt' : ''), style: `left:0;top:${laneY[l.id]}px;width:${MAP.W}px;height:${laneH[l.id]}px` }));
-    const lbl = h('button', { type: 'button', class: 'lane-lbl ln-' + l.id, dataset: { lane: l.id }, style: `left:24px;top:${laneY[l.id] + 24}px;width:${L.labelW - 48}px;max-height:${laneH[l.id] - 48}px`, title: 'Highlight this lane' },
-      h('span', { class: 'lk', text: 'Lane' }), h('span', { class: 'ln', text: l.label }), l.desc ? h('span', { class: 'ld', text: l.desc }) : null);
+    const lbl = laneLbl[l.id];
+    lbl.style.top = (laneY[l.id] + 24) + 'px'; lbl.style.maxHeight = (laneH[l.id] - 48) + 'px';
     const first = [...world.children].find(el => el.dataset && el.dataset.id && laneOf(el.dataset.id) === l.id);
-    world.insertBefore(lbl, first || null);
+    if (lbl.nextElementSibling !== (first || null)) world.insertBefore(lbl, first || null); // moving a button would drop its focus
   });
   const svg = document.createElementNS(svgNS, 'svg');
   svg.setAttribute('class', 'edges'); svg.setAttribute('width', MAP.W); svg.setAttribute('height', MAP.H);
@@ -1448,18 +1496,31 @@ function layoutMap() {
   lod.forEach(c => world.classList.add(c));
   if (S.mapv) applyTitles(S.mapv.k);
 }
+/* in the overview, a section says what it holds just below it that is not drawn there */
+function overviewCount(id) {
+  let np = 0, nq = 0;
+  const walk = k => {
+    const n = S.I.nodes[k];
+    if (!n || ovShown(k)) return; // a section below counts its own
+    if (n.kind === 'paper') np++; else if (n.kind === 'question') nq++;
+    (S.I.kids[k] || []).forEach(walk);
+  };
+  (S.I.kids[id] || []).forEach(walk);
+  const parts = [np ? `${np} paper${np > 1 ? 's' : ''}` : '', nq ? `${nq} question${nq > 1 ? 's' : ''}` : ''].filter(Boolean);
+  return parts.length ? h('span', { class: 'ov', text: parts.join(' · ') }) : null;
+}
 function nodeEl(n, isNew) {
   const base = { class: 'n', dataset: { id: n.id }, type: 'button' };
   let el;
   switch (n.kind) {
-    case 'group': el = h('button', Object.assign(base, { class: 'n n-band' }), h('span', { class: 'tt', text: n.text })); break;
+    case 'group': el = h('button', Object.assign(base, { class: 'n n-band' }), h('span', { class: 'tt', text: n.text }), overviewCount(n.id)); break;
     case 'chain': {
       const c = CHAIN_CLASS[firstLine(n.text)] || '';
       el = h('button', Object.assign(base, { class: 'n n-chain ' + c }), c ? h('span', { class: 'stg', text: CHAIN_STAGE[c] }) : null, h('span', { class: 'tt', text: firstLine(n.text) }));
       break;
     }
     case 'question':
-      el = h('button', Object.assign(base, { class: 'n n-q' }), h('span', { class: 'qm', 'aria-hidden': 'true', text: '?' }), h('span', { class: 't', text: n.text }));
+      el = h('button', Object.assign(base, { class: 'n n-q' }), h('span', { class: 'qm', 'aria-hidden': 'true', text: '?' }), h('span', { class: 't', text: n.text }, overviewCount(n.id)));
       break;
     case 'note': {
       el = h('button', Object.assign(base, { class: 'n n-note' }), h('span', { class: 'nk', text: 'Key insights' }), n.title ? h('span', { class: 'nt', text: n.title }) : null);
@@ -1482,12 +1543,12 @@ function nodeEl(n, isNew) {
         tw ? h('span', { class: 'twin', text: 'also ' + tw }) : null);
       break;
     }
-    case 'framing': el = h('button', Object.assign(base, { class: 'n n-frame' }), h('span', { class: 'tt', text: n.text })); break;
+    case 'framing': el = h('button', Object.assign(base, { class: 'n n-frame' }), h('span', { class: 'tt', text: n.text }), overviewCount(n.id)); break;
     case 'bib': el = h('button', Object.assign(base, { class: 'n n-bib' }), h('b', { text: 'Bibliography' }), h('span', { text: `${Object.keys(S.data.papers).length} papers · open the list →` })); break;
     default: {
       const lines = String(n.text || '').split('\n');
       const dp = Math.min(4, S.I.depth[n.id] || 0);
-      el = h('button', Object.assign(base, { class: 'n n-concept d' + dp + (n.major || dp === 0 ? ' major' : '') + (n.links ? ' linked' : '') }), h('span', { class: 'tt', text: lines[0] }), lines.length > 1 ? h('span', { class: 's', text: lines.slice(1).join(' ') }) : null);
+      el = h('button', Object.assign(base, { class: 'n n-concept d' + dp + (n.major || dp === 0 ? ' major' : '') + (n.links ? ' linked' : '') }), h('span', { class: 'tt', text: lines[0] }), lines.length > 1 ? h('span', { class: 's', text: lines.slice(1).join(' ') }) : null, overviewCount(n.id));
     }
   }
   const pp = n.paper && P(n.paper);
@@ -1520,6 +1581,7 @@ function renderLegend() {
     'Paper. Its coloured left edge gives its status: ' + S.data.vocab.status.map(s => s.label.toLowerCase()).join(', ') + '. These four colours mean nothing else on the map. Papers about both lanes appear twice');
   row(h('span', { class: 'sw q' }), 'Gap, in blue: an open question or idea for the thesis');
   row(h('span', { class: 'sw note' }), 'Key insights and what remains open');
+  row(h('span', { class: 'sw lv1' }), 'Zoomed far out, the map shows its sections only, each with how many papers and questions it holds. Zoom in, or click a section, to see them');
   const box = $('#map-areas'); box.textContent = '';
   const btns = [];
   S.data.map.lanes.forEach(l => {
@@ -1534,24 +1596,79 @@ function renderLegend() {
     h('button', { type: 'button', class: 'btn small ghost', text: 'Whole map', onclick: () => { guideAside(); fitMap(true); } })));
 }
 function focusCell(key) {
-  const c = S.cells[key]; if (!c) return;
+  if (!S.cells[key]) return;
   guideAside();
-  focusRect(c.x, c.y, c.w, c.h, true); // beside the guide when there is room for both
+  // beside the guide when there is room for both
+  frame(r => { const c = S.cells[key]; return c ? rectView(c.x, c.y, c.w, c.h, r) : null; }, true);
 }
 /* On a phone the guide covers the map: going to an area from it puts it aside, without remembering that (the visitor
    did not close it, so it is back on the next visit). On wider screens it stays and the area is framed beside it. */
 function guideAside() {
   if ($('#viewport').clientWidth <= 760 && !$('#map-help').hidden) setHelp(false);
 }
-function focusRect(x, y, w, hgt, animate) {
-  const { w: vw, h: vh, x0 } = visibleArea(true);
-  const k = clampK(Math.min(vw / (w + 80), vh / (hgt + 80), 1.1));
-  const ty = Math.max(vh / 2 - (y + hgt / 2) * k, 12 - y * k);
-  applyMapView({ k, x: x0 + vw / 2 - (x + w / 2) * k, y: ty }, animate);
+/* ---------- the overview and the full map ----------
+   Far out (below OV_IN) the map is laid out again with its sections only; zooming back in past OV_OUT brings the
+   papers back. The gap between the two keeps it from flickering while zooming. */
+const OV_IN = 0.5, OV_OUT = 0.75;
+const OV_HIDE = new Set(['paper', 'question', 'note']);
+// shown in the overview: sections and the links of the chain, and a question at the head of a branch of its own
+const ovShown = id => { const n = S.I.nodes[id]; return !!n && (!OV_HIDE.has(n.kind) || (n.kind === 'question' && !S.I.parent[id])); };
+const wantOverview = k => (S.overview ? k <= OV_OUT : k < OV_IN);
+const viewRange = ov => (ov ? { lo: 0.06, hi: OV_OUT } : { lo: OV_IN, hi: 2.2 });
+const FREE = { lo: 0.06, hi: 2.2 };
+function setOverview(on) {
+  if (!!S.overview === on || !S.mapEls) return false;
+  const world = $('#world'), had = document.activeElement;
+  S.overview = on;
+  world.classList.toggle('overview', on);
+  layoutMap();
+  if (S.sel) highlightSel(S.sel); // the connectors were drawn again
+  // the keyboard was on a box the new layout does not show: keep it on the map, so + − and the arrows still work
+  if (had && had !== document.body && world.contains(had) && had.hidden) $('#viewport').focus({ preventScroll: true });
+  return true;
 }
-/* pan & zoom */
-function applyMapView(v, animate) {
+/* switching while zooming: the box nearest the point under the pointer (or the middle) keeps that point where it was,
+   at the same place inside the box (box widths change between the two layouts) */
+function switchAnchored(on, v, focus) {
+  const va = visibleArea(true);
+  const pt = focus || { x: va.x0 + va.w / 2, y: va.h / 2 };
+  const wx = (pt.x - v.x) / v.k, wy = (pt.y - v.y) / v.k;
+  let best = null, bd = Infinity;
+  Object.entries(S.L).forEach(([id, b]) => {
+    if (!ovShown(id)) return; // in both layouts
+    const dx = Math.max(b.x - wx, 0, wx - b.x - b.w), dy = Math.max(b.y - wy, 0, wy - b.y - b.h), dd = dx * dx + dy * dy;
+    if (dd < bd) { bd = dd; best = { id, fx: Math.min(1, Math.max(0, (wx - b.x) / b.w)), fy: Math.min(1, Math.max(0, (wy - b.y) / b.h)) }; }
+  });
+  setOverview(on);
+  const nb = best && S.L[best.id];
+  return nb ? { k: v.k, x: pt.x - (nb.x + best.fx * nb.w) * v.k, y: pt.y - (nb.y + best.fy * nb.h) * v.k } : v;
+}
+/* Frame something: make(range) returns the view of it in the layout on screen, its zoom kept within range, or null when
+   it is not in that layout. The full map decides, so the same request gives the same result whatever is on screen: if
+   the full map would show it far out (below OV_IN), the overview shows it instead, unless it is not in the overview
+   (a paper, a question, key insights) or opts.full asks for the full map. */
+function frame(make, animate, opts = {}) {
+  if (!S.mapEls) return;
+  const was = !!S.overview;
+  if (was) setOverview(false);
+  const full = make(FREE);
+  if (!full) { if (was) setOverview(true); return; }
+  let ov = S.mapReady && !opts.full && full.k < OV_IN, v = null;
+  if (ov) { setOverview(true); v = make(viewRange(true)); if (!v) { setOverview(false); ov = false; } }
+  if (!ov) v = make(viewRange(false));
+  applyMapView(v || full, animate && ov === was, { keepLayout: true }); // when the boxes moved: no glide
+}
+const inRange = (k, r) => Math.min(r.hi, Math.max(r.lo, clampK(k)));
+function rectView(x, y, w, hgt, r = FREE) {
+  const { w: vw, h: vh, x0 } = visibleArea(true);
+  const k = inRange(Math.min(vw / (w + 80), vh / (hgt + 80), 1.1), r);
+  const ty = Math.max(vh / 2 - (y + hgt / 2) * k, 12 - y * k);
+  return { k, x: x0 + vw / 2 - (x + w / 2) * k, y: ty };
+}
+/* pan & zoom. opts.keepLayout: the caller chose the layout (frame); opts.focus: the point the zoom is about */
+function applyMapView(v, animate, opts = {}) {
   const world = $('#world');
+  if (!opts.keepLayout && S.mapReady && S.mapEls && wantOverview(v.k) !== !!S.overview) { v = switchAnchored(!S.overview, v, opts.focus); animate = false; }
   S.mapv = { k: v.k, x: v.x, y: v.y };
   world.classList.toggle('animate', !!animate);
   world.style.transform = `translate(${v.x}px,${v.y}px) scale(${v.k})`;
@@ -1591,7 +1708,23 @@ function titleTargets() {
   $$('.lane-lbl', $('#world')).forEach(el => out.push({ el, id: '', kind: 'lane', group: 'lane' }));
   return out;
 }
-const fitsBox = el => el.scrollHeight <= el.clientHeight + 1 && el.scrollWidth <= el.clientWidth + 1;
+/* Does everything in the box stay inside it? Each part is compared with the inside of the box at its exact, fractional
+   position: whole-pixel sizes (scrollHeight, offsetTop) round half pixels both ways, and content centred in its box
+   spills over both edges at once. The map is scaled by S.mapv.k, so on-screen lengths are divided by it. */
+const fitsBox = el => {
+  if (el.scrollWidth > el.clientWidth + 1) return false;
+  const r = el.getBoundingClientRect(), k = el.offsetWidth ? r.width / el.offsetWidth : (S.mapv.k || 1), tol = 0.5 * k;
+  const cs = getComputedStyle(el), pad = s => (parseFloat(cs[s]) || 0) * k;
+  // inside the padding: a growing title may not eat the box's own margins
+  const top = r.top + el.clientTop * k + pad('paddingTop'), left = r.left + el.clientLeft * k + pad('paddingLeft');
+  const bottom = r.top + (el.clientTop + el.clientHeight) * k - pad('paddingBottom'), right = r.left + (el.clientLeft + el.clientWidth) * k - pad('paddingRight');
+  for (const c of el.children) {
+    if (!c.offsetParent) continue; // not shown at this zoom
+    const q = c.getBoundingClientRect();
+    if (q.top < top - tol || q.bottom > bottom + tol || q.left < left - tol || q.right > right + tol) return false;
+  }
+  return true;
+};
 const titlePx = el => { const t = el.querySelector('.tt, .n-q .t, .pn, .nt, .n-bib b, .ln'); return t ? parseFloat(getComputedStyle(t).fontSize) || 0 : 0; };
 const floor20 = f => Math.max(1, Math.floor(f * 20) / 20);
 /* the largest size (up to step) at which each title still fits its box: all at their largest, then a few rounds of
@@ -1637,7 +1770,9 @@ function applyTitles(k) {
   // sizes measured while descriptions were hidden may not fit once they show again: normal size until measured
   if (tf.far && !far) { titleTargets().forEach(t => setTf(t.el, 1)); tf.key = '1'; tf.far = false; }
   // a timer, not an animation frame: frames wait while the tab is in the background, and the measure needs none
-  tf.timer = setTimeout(() => {
+  tf.timer = setTimeout(function measure() {
+    // a glide is under way: measure once it has ended, at the scale it ends on
+    if ($('#world').classList.contains('animate')) { tf.timer = setTimeout(measure, 120); return; }
     // the map must be on screen to be measured; otherwise this runs again when it is shown
     if (S.tf !== tf || !S.mapv || tfKey(S.mapv.k) !== key || !$('#world').getClientRects().length) return;
     tf.cache.set(key, fitTitles(tfStep(S.mapv.k))); tf.key = key; tf.far = far;
@@ -1651,7 +1786,7 @@ function resetTitles() {
 }
 function zoomAt(cx, cy, f, animate) {
   const v = S.mapv, k = clampK(v.k * f), r = k / v.k;
-  applyMapView({ k, x: cx - (cx - v.x) * r, y: cy - (cy - v.y) * r }, animate);
+  applyMapView({ k, x: cx - (cx - v.x) * r, y: cy - (cy - v.y) * r }, animate, { focus: { x: cx, y: cy } });
 }
 function visibleArea(forFit) {
   const vp = $('#viewport').getBoundingClientRect();
@@ -1662,27 +1797,34 @@ function visibleArea(forFit) {
   if (forFit && help.getClientRects().length && vp.width > 760) { x0 = help.getBoundingClientRect().right - vp.left + 12; w -= x0; }
   return { w: Math.max(120, w), h: Math.max(60, hgt), x0 };
 }
-function fitMap(animate) {
+function fitView(r = FREE) {
   const { w, h: hh, x0 } = visibleArea(true);
-  const k = clampK(Math.min(w / MAP.W, hh / MAP.H) * 0.98);
-  applyMapView({ k, x: x0 + (w - MAP.W * k) / 2, y: Math.max(8, (hh - MAP.H * k) / 2) }, animate);
+  const k = inRange(Math.min(w / MAP.W, hh / MAP.H) * 0.98, r);
+  return { k, x: x0 + (w - MAP.W * k) / 2, y: Math.max(8, (hh - MAP.H * k) / 2) };
+}
+function fitMap(animate) { frame(fitView, animate); }
+function nodeView(id, r = FREE) {
+  const b = S.L[id]; if (!b) return null;
+  const { w, h: hh, x0 } = visibleArea(true);
+  const k = inRange(Math.max(S.mapv.k, Math.min(1, Math.min(w / (b.w + 260), hh / (b.h + 220)))), r);
+  return { k, x: x0 + w / 2 - (b.x + b.w / 2) * k, y: hh / 2 - (b.y + b.h / 2) * k };
 }
 function focusNode(id, animate = true) {
-  const b = S.L[id]; if (!b) return;
-  const { w, h: hh, x0 } = visibleArea(true);
-  const k = clampK(Math.max(S.mapv.k, Math.min(1, Math.min(w / (b.w + 260), hh / (b.h + 220)))));
-  applyMapView({ k, x: x0 + w / 2 - (b.x + b.w / 2) * k, y: hh / 2 - (b.y + b.h / 2) * k }, animate);
+  frame(r => nodeView(id, r), animate, { full: !ovShown(id) }); // a paper, a question or key insights: the full map
 }
 /* frame a node together with everything below it */
-function focusSubtree(ids, animate = true) {
+function subtreeView(ids, r = FREE) {
   const boxes = ids.map(i => S.L[i]).filter(Boolean);
-  if (!boxes.length) return;
+  if (!boxes.length) return null;
   const x1 = Math.min(...boxes.map(b => b.x)), y1 = Math.min(...boxes.map(b => b.y));
   const x2 = Math.max(...boxes.map(b => b.x + b.w)), y2 = Math.max(...boxes.map(b => b.y + b.h));
   const { w, h: hh } = visibleArea(true);
   // a big subtree is shown whole when it fits at a readable zoom, otherwise its top is shown
-  if ((x2 - x1) * 0.42 <= w && (y2 - y1) * 0.42 <= hh) focusRect(x1, y1, x2 - x1, y2 - y1, animate);
-  else focusNode(ids[0], animate);
+  return (x2 - x1) * 0.42 <= w && (y2 - y1) * 0.42 <= hh ? rectView(x1, y1, x2 - x1, y2 - y1, r) : nodeView(ids[0], r);
+}
+function focusSubtree(ids, animate = true) {
+  if (!ids.length) return;
+  frame(r => subtreeView(ids, r), animate, { full: !ovShown(ids[0]) });
 }
 /* The guide is open until the visitor closes it (×), and their choice is remembered. Nothing else closes it.
    (A new key: the old one, 'wtrc-help', was also set when a box was clicked.) */
@@ -1701,7 +1843,7 @@ function initMapInput() {
   vp.addEventListener('pointerdown', e => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (pts.size === 1) { start = { x: e.clientX, y: e.clientY, v: { ...S.mapv } }; dragging = false; }
+    if (pts.size === 1) { start = { x: e.clientX, y: e.clientY, v: { ...S.mapv }, gen: S.layoutGen }; dragging = false; }
     if (pts.size === 2) { const [p1, p2] = [...pts.values()]; pinch = { d: Math.hypot(p1.x - p2.x, p1.y - p2.y), v: { ...S.mapv }, mx: (p1.x + p2.x) / 2, my: (p1.y + p2.y) / 2 }; dragging = true; }
   });
   vp.addEventListener('pointermove', e => {
@@ -1713,19 +1855,22 @@ function initMapInput() {
       const dd = Math.hypot(p1.x - p2.x, p1.y - p2.y), mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
       const k = clampK(pinch.v.k * dd / pinch.d), ratio = k / pinch.v.k;
       const ax = pinch.mx - r.left, ay = pinch.my - r.top;
-      applyMapView({ k, x: ax - (ax - pinch.v.x) * ratio + (mx - pinch.mx), y: ay - (ay - pinch.v.y) * ratio + (my - pinch.my) }, false);
+      const gen = S.layoutGen;
+      applyMapView({ k, x: ax - (ax - pinch.v.x) * ratio + (mx - pinch.mx), y: ay - (ay - pinch.v.y) * ratio + (my - pinch.my) }, false, { focus: { x: mx - r.left, y: my - r.top } });
+      if (S.layoutGen !== gen) pinch = { d: dd, v: { ...S.mapv }, mx, my }; // laid out again: go on from here
       return;
     }
     if (!start) return;
     const dx = e.clientX - start.x, dy = e.clientY - start.y;
     if (!dragging && Math.hypot(dx, dy) > 5) { dragging = true; vp.classList.add('dragging'); try { vp.setPointerCapture(e.pointerId); } catch { /* ignore */ } }
+    if (dragging && start.gen !== S.layoutGen) { start = { x: e.clientX, y: e.clientY, v: { ...S.mapv }, gen: S.layoutGen }; return; }
     if (dragging) applyMapView({ k: start.v.k, x: start.v.x + dx, y: start.v.y + dy }, false);
   });
   const end = e => {
     pts.delete(e.pointerId);
     if (pts.size < 2) pinch = null;
     // one finger left after a pinch: carry on panning from the current view, not from where the gesture began
-    if (pts.size === 1) { const [q] = [...pts.values()]; start = { x: q.x, y: q.y, v: { ...S.mapv } }; }
+    if (pts.size === 1) { const [q] = [...pts.values()]; start = { x: q.x, y: q.y, v: { ...S.mapv }, gen: S.layoutGen }; }
     if (!pts.size) { vp.classList.remove('dragging'); setTimeout(() => { dragging = false; }, 0); start = null; }
   };
   vp.addEventListener('pointerup', end); vp.addEventListener('pointercancel', end);
@@ -1767,7 +1912,11 @@ function initMapInput() {
     const left = vr.left + va.x0, top = vr.top;
     if (r.left < left || r.right > left + va.w || r.top < top || r.bottom > top + va.h) {
       if (n.dataset.id) focusNode(n.dataset.id);
-      else focusRect(parseFloat(n.style.left), parseFloat(n.style.top), n.offsetWidth, n.offsetHeight, true);
+      else {
+        // a lane name: read again after a change of layout, which draws the lane names anew
+        const lane = n.dataset.lane;
+        frame(r => { const el = $$('.lane-lbl', $('#world')).find(x => x.dataset.lane === lane); return el ? rectView(parseFloat(el.style.left), parseFloat(el.style.top), el.offsetWidth, el.offsetHeight, r) : null; }, true);
+      }
     }
   });
   $('#z-in').onclick = () => zoomAt(visibleArea().w / 2, visibleArea().h / 2, 1.3, true);
@@ -2219,7 +2368,9 @@ function closeDrawer(silent) {
   d.hidden = true; S.sel = null; S.editing = false; S.formDirty = false;
   highlightSel(null);
   if (hadFocus) {
-    const back = S.opener && S.opener.isConnected && !S.opener.closest('#drawer') ? S.opener : $('#main');
+    // back to what opened the panel; a box the overview no longer draws hands the keyboard to the map instead
+    const o = S.opener, shown = o && o.isConnected && !o.closest('#drawer') && o.getClientRects().length;
+    const back = shown ? o : o && o.isConnected && $('#world').contains(o) ? $('#viewport') : $('#main');
     back.focus({ preventScroll: true });
   }
   S.opener = null;
@@ -2258,9 +2409,47 @@ function openDrawer(sel, keepEdit) {
     if (ids.length) requestAnimationFrame(() => focusSubtree(ids));
   }
 }
+/* The colour code of the map, recalled in the side panel for what was clicked: what its colour means, among the others */
+const STATUS_LOOK = { published: 'Green edge', 'lab-preprint': 'Indigo double edge', preprint: 'Orange dashed edge', workshop: 'Purple dotted edge' };
+const proxDots = k => h('span', { class: 'pxd', 'aria-hidden': 'true' }, [3, 2, 1].map(i => h('i', { class: k >= i ? 'on' : '' }))); // filled from the right, as on the map
+function paperColours(p) {
+  return blk('Colour on the map', h('div', null,
+    h('ul', { class: 'ckey' }, S.data.vocab.status.map(s => h('li', { class: s.key === p.status ? 'on' : null },
+      h('span', { class: 'sw s-' + s.key, 'aria-hidden': 'true' }),
+      h('span', { text: `${STATUS_LOOK[s.key] || 'Edge'}: ${s.label.toLowerCase()}` }),
+      s.key === p.status ? h('span', { class: 'this', text: 'this paper' }) : null))),
+    h('p', { class: 'ckey-note', text: 'On the map, the left edge of a paper gives its publication status; these colours mean nothing else. Its symbol gives the verdict and its dots the proximity to the goal, as in the labels above.' })));
+}
+function boxColours(n) {
+  const top = 'Top level of the map: the lanes, the links of the chain, the groups, the section at the top of each list, the bibliography and the problem framing share this colour.';
+  let rows = [], note = '';
+  if (n.kind === 'concept') {
+    const d = Math.min(4, S.I.depth[n.id] || 0);
+    rows.push(h('li', { class: 'on' }, h('span', { class: 'lvs', 'aria-hidden': 'true' }, [0, 1, 2, 3, 4].map(i => h('span', { class: 'sw lv' + i + (i === d ? ' cur' : '') }))),
+      h('span', { text: d === 0 ? 'Section at the top of its list' : `Section, level ${d + 1} of its list` })));
+    note = 'Its shade gives its level: the top box of each list stands out most, and each level below is a step closer to the page colour.';
+    if (n.links && n.links.length) rows.push(h('li', null, h('span', { class: 'bdot', 'aria-hidden': 'true' }), h('span', { text: 'Blue dot: linked to cells of the matrices (see “In the matrices”)' })));
+  } else if (n.kind === 'question') {
+    rows.push(h('li', { class: 'on' }, h('span', { class: 'sw q', 'aria-hidden': 'true' }), h('span', { text: 'Blue: an open question or idea, a gap in the research' })));
+  } else if (n.kind === 'note') {
+    rows.push(h('li', { class: 'on' }, h('span', { class: 'sw note', 'aria-hidden': 'true' }), h('span', { text: 'Key insights: what this part of the map shows, and what remains open' })));
+  } else if (n.kind === 'paper') { // reached only for a reference whose paper is not in the list
+    rows.push(h('li', { class: 'on' }, h('span', { class: 'sw ext', 'aria-hidden': 'true' }), h('span', { text: 'Grey edge: a reference that is not in the list of papers, so it has no status colour' })));
+  } else if (['chain', 'group', 'framing', 'bib', 'lane'].includes(n.kind)) {
+    rows.push(h('li', { class: 'on' }, h('span', { class: 'sw ' + (n.kind === 'chain' ? 'chain' : 'lv0'), 'aria-hidden': 'true' }), h('span', { text: top })));
+  }
+  if (!rows.length) return null;
+  return blk('Colour on the map', h('div', null, h('ul', { class: 'ckey' }, rows), note ? h('p', { class: 'ckey-note', text: note }) : null));
+}
+/* the chips that list papers in a panel: what their look means (the same key as on the matrix pages) */
+function chipKey(withSecondary) {
+  return h('p', { class: 'chipkey' }, h('span', { class: 'lead', text: 'Paper chips, by proximity to the goal:' }),
+    [3, 2, 1].map(k => h('span', null, h('span', { class: `chip p${k} demo`, 'aria-hidden': 'true' }, h('span', { class: 'vg works' }), 'Paper'), voc('proximity', k).toLowerCase())),
+    withSecondary ? h('span', null, h('span', { class: 'chip p2 sec demo', 'aria-hidden': 'true' }, h('span', { class: 'vg works' }), 'Paper'), 'dashed and paler: secondary cell') : null);
+}
 function pills(p) {
   return h('p', { class: 'pills' },
-    h('span', { class: 'pill px' + p.proximity, text: `Proximity ${p.proximity} · ${voc('proximity', p.proximity).toLowerCase()}` }),
+    h('span', { class: 'pill px' + p.proximity }, proxDots(p.proximity), `Proximity ${p.proximity} · ${voc('proximity', p.proximity).toLowerCase()}`),
     h('span', { class: 'pill' }, h('span', { class: 'vg ' + p.verdict, 'aria-hidden': 'true' }), ' ' + voc('verdict', p.verdict)),
     h('span', { class: 'pill', text: voc('evidence', p.evidence) }));
 }
@@ -2277,7 +2466,7 @@ function panelPaper(id, fromNode) {
     body.append(h('h2', { id: 'dr-h', text: p.short }));
     body.append(h('p', { class: 'ttl' }, p.url && /^https?:[/][/]/i.test(p.url) ? h('a', { href: p.url, target: '_blank', rel: 'noopener noreferrer' }, p.title, ' ↗') : p.title));
     body.append(h('p', { class: 'meta' }, h('span', { text: p.venue }), h('span', { text: id })));
-    body.append(pills(p));
+    body.append(pills(p), paperColours(p));
     body.append(pendingNote(b => b.change.id === id || b.change.paper === id || (fromNode && (b.change.id === fromNode.id || b.change.near === fromNode.id)), 'this paper'));
     if (fromNode) body.append(blk('On the map', h('p', { class: 'quote', text: fromNode.text })));
     body.append(blk('What it does', p.does), blk('Key result', p.keyResult), blk('Why this proximity', p.whyProximity), blk('Contribution and gap', p.gap), blk('Limitation', p.limitation));
@@ -2371,14 +2560,14 @@ function panelNode(id) {
     body.append(pendingNote(b => b.change.id === id || b.change.near === id, 'this box'));
     if (n.kind === 'note') { const md = h('div', { class: 'md' }); renderMarkup(md, n.html); const h4 = $('h4', md); if (h4 && plain(h4.textContent) === nodeTitle(n)) h4.remove(); body.append(md); }
     else if (String(n.text).includes('\n')) body.append(h('p', { style: 'white-space:pre-line', text: String(n.text).split('\n').slice(1).join('\n') }));
-    body.append(matrixLinks(n.links));
+    body.append(boxColours(n), matrixLinks(n.links));
     if (n.kind !== 'chain') body.append(blk('Where it sits on the map', crumbs(id)));
     const below = n.kind === 'chain'
       ? S.data.map.nodes.filter(m => { const r = S.I.nodes[S.I.rootOf[m.id]]; const col = S.data.map.columns.find(c => c.node === id); return r && col && r.column === col.id && m.id !== id; }).map(m => m.id)
       : [...descendants(id)];
     const paperIds = [...new Set(below.map(i => S.I.nodes[i]).filter(x => x.kind === 'paper' && x.paper && P(x.paper)).map(x => x.paper))];
     const direct = kidsOf(id).map(i => S.I.nodes[i]).filter(x => !(x.kind === 'paper' && x.paper && P(x.paper)));
-    if (paperIds.length) body.append(blk(`${paperIds.length} paper${paperIds.length > 1 ? 's' : ''} ${n.kind === 'chain' ? 'in this column' : 'below this box'}`, h('div', { class: 'chips' }, paperIds.map(pid => chip({ p: pid, main: true }, '')))));
+    if (paperIds.length) body.append(blk(`${paperIds.length} paper${paperIds.length > 1 ? 's' : ''} ${n.kind === 'chain' ? 'in this column' : 'below this box'}`, h('div', null, h('div', { class: 'chips' }, paperIds.map(pid => chip({ p: pid, main: true }, ''))), chipKey())));
     if (direct.length && n.kind !== 'chain') body.append(blk('Inside', h('ul', { class: 'linklist' }, direct.map(x => h('li', null, h('button', { type: 'button', class: 'go', onclick: () => goNode(x.id) }, h('span', { text: clipText(nodeTitle(x), 70) }), h('span', { class: 'cnt', text: { question: 'question', note: 'insights', concept: descendants(x.id).size ? `${descendants(x.id).size} below` : '' }[x.kind] || '' })))))));
     const rel = (n.also || []).concat(S.data.map.nodes.filter(m => (m.also || []).includes(id)).map(m => m.id)).filter(i => S.I.nodes[i]);
     if (rel.length) body.append(blk('Also related', h('ul', { class: 'linklist' }, rel.map(i => h('li', null, h('button', { type: 'button', class: 'go', onclick: () => goNode(i) }, clipText(nodeTitle(S.I.nodes[i]), 70)))))));
@@ -2424,7 +2613,7 @@ function panelLane(laneId) {
   drawer(h('span', { text: 'Lane of the map' }), body => {
     body.append(h('h2', { id: 'dr-h', text: lane.label }));
     if (lane.desc) body.append(h('p', { text: lane.desc }));
-    body.append(matrixLinks(lane.links));
+    body.append(boxColours({ kind: 'lane' }), matrixLinks(lane.links));
     const cells = lane.span ? [[`${lane.id}|`, lane.label]] : S.data.map.columns.map(c => [`${lane.id}|${c.id}`, S.I.nodes[c.node] ? firstLine(S.I.nodes[c.node].text) : c.id]);
     body.append(blk('Areas', h('ul', { class: 'linklist' }, cells.map(([key, label]) => {
       const ids = (S.I.roots[key] || []).flatMap(r => [r, ...descendants(r)]);
@@ -2453,6 +2642,7 @@ function panelCell(tid, key) {
           h('button', { class: 'rm', type: 'button', title: 'Suggest removing this placement', 'aria-label': `Suggest removing ${P(x.p).short} from this cell`, text: 'remove…', onclick: () => formRemovePlacement(realT, row, col, x.p) }),
           h('button', { class: 'rm edit', type: 'button', title: 'Suggest a better reason or cell type', 'aria-label': `Suggest a change to the placement of ${P(x.p).short}`, text: 'edit…', onclick: () => formPlacement({ paper: x.p, table: realT, row, col, edit: true }) })]),
       h('span', { class: 'why', text: x.why })))) : h('p', { text: 'No paper yet. This is a gap in the literature, or a paper is missing.' })));
+    if (items.length) body.append(chipKey(items.some(x => !x.main)));
     const nodes = nodesLinked(tid, row, col);
     if (nodes.length) body.append(blk('On the map', h('ul', { class: 'linklist' }, nodes.map(nid => h('li', null, h('button', { type: 'button', class: 'go', onclick: () => goNode(nid) }, icon(ICON.pin), nodeTitle(S.I.nodes[nid])))))));
     body.append(h('div', { class: 'actions' }, h('span', { class: 'lbl', text: 'Know a paper that belongs here?' }),
