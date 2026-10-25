@@ -107,5 +107,5 @@ In `data.json`, `map.lanes` lists the lanes, `map.columns` ties each column (W, 
   zooming, the section nearest the pointer stays in place; "Whole map", "Go to an area", clicking a box or opening a
   paper choose the layout that suits what they show (`frame()` in `index.html`).
 - **Colours, recalled.** The side panel of a box says what its colour means on the map ("Colour on the map"): the
-  status edge of a paper among the four, the shade of a section among the levels and its blue dot, the blue of a
+  status edge of the paper, the shade of the section and its blue dot, the blue of a
   question, the colour shared by the top level. Panels that list papers as chips explain their shade.
