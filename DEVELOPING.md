@@ -55,7 +55,7 @@ of the map. Each paper appears once, in its main cell of the first matrix.
 - The README has no totals: each paper and each question is a line of its own, so two suggestions merged one after the other
   still give the README of the merged data (or a visible conflict on neighbouring lines).
 - The site's address and repository are `SITE` and `REPO` in `core.js`, not in `data.json`, so a suggestion cannot change
-  where the list points.
+  where the list points. The GitHub button of the top bar points to `REPO` too.
 - To change the layout or the wording of the list, in one pull request: edit `CORE.readme` in `core.js`, run
   `py tools/sync_core.py`, regenerate `README.md`. Merge it, then paste `worker/worker.js` into Cloudflare right away: until
   then, suggestions arrive with a README that the check refuses.

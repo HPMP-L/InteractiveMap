@@ -122,6 +122,8 @@ button{font:inherit; color:inherit}
 .icon-btn{display:inline-grid; place-items:center; width:36px; height:36px; border-radius:50%; border:1px solid transparent; background:var(--field); cursor:pointer; color:var(--ink-2)}
 .icon-btn:hover{background:var(--rule); color:var(--ink)}
 .icon-btn svg{width:17px; height:17px; fill:none; stroke:currentColor; stroke-width:1.8}
+a.icon-btn{text-decoration:none}
+.icon-btn svg.gh{width:18px; height:18px; fill:currentColor; stroke:none} /* the GitHub mark is a filled shape */
 .tabs{grid-column:1/-1; justify-self:start; max-width:100%; display:flex; gap:2px; overflow-x:auto; scrollbar-width:none; margin-top:6px; padding:3px; background:var(--track); border-radius:11px}
 .tabs::-webkit-scrollbar{display:none}
 .tabs a{position:relative; display:inline-flex; align-items:center; gap:7px; padding:8px 14px; font:500 13.5px/1 var(--sans); color:var(--ink-2); text-decoration:none; white-space:nowrap; border-radius:8px}
@@ -130,7 +132,7 @@ button{font:inherit; color:inherit}
 .tabs:empty{display:none}
 .tabs .tn{font:600 11.5px/1 var(--sans); color:var(--muted)}
 .tabs a[aria-current="page"] .tn{color:inherit}
-@media (max-width:900px){ .brand p{display:none} .tabs a{padding-inline:10px} }
+@media (max-width:900px){ .brand p{display:none} .tabs a{padding-inline:10px} .tools .np-l{display:none} .tools .np-s{display:inline} }
 .tabs .sep{width:1px; background:var(--rule-2); margin:7px 4px}
 .tabs .badge{font:700 11px/1 var(--sans); background:var(--strong-bg); color:var(--strong-ink); border-radius:999px; padding:3px 7px}
 @media (max-width:760px){
@@ -726,7 +728,9 @@ html{scroll-padding-top:calc(var(--hdr-h) + var(--bar-h, 0px) + 12px)}
 @media (max-width:374px){ .tabs a{padding-inline:6px} }
 /* the name on small screens: smaller, then without "Awesome", then the short form; the button keeps only its + */
 @media (max-width:600px){ .brand a{font-size:18px} .brand a .ch{display:none} }
-@media (max-width:430px){ .brand .bn-l{display:none} .brand .bn-s{display:inline} }
+@media (max-width:470px){ .brand .bn-l{display:none} .brand .bn-s{display:inline} .top-in{column-gap:12px} .tools{gap:6px} }
+/* narrow phones: "+ Paper" leaves the name of the list room beside the GitHub and theme buttons; "Add" is still read out */
+@media (max-width:400px){ .tools .np-s{text-transform:capitalize} .tools .np-a{position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap} }
 @media (max-width:350px){ .tools .np-s{position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap} #np-btn{padding-inline:12px} }
 /* the zoom buttons move clear of the open panel */
 @media (min-width:761px){ body.on-map:has(#drawer:not([hidden])) .map-zoom{right:calc(max(12px,env(safe-area-inset-right,0px)) + min(470px,100% - 24px) + 14px)} }
@@ -759,7 +763,10 @@ html{scroll-padding-top:calc(var(--hdr-h) + var(--bar-h, 0px) + 12px)}
       <p class="sr" id="q-count" aria-live="polite"></p>
     </div>
     <div class="tools">
-      <button class="btn primary small" id="np-btn" type="button" title="Add your paper"><span aria-hidden="true">+</span> <span class="np-l">Add your paper</span><span class="np-s">Add paper</span></button>
+      <button class="btn primary small" id="np-btn" type="button" title="Add your paper"><span aria-hidden="true">+</span> <span class="np-l">Add your paper</span><span class="np-s"><span class="np-a">Add </span>paper</span></button>
+      <a class="icon-btn" id="gh-link" href="https://github.com/HPMP-L/InteractiveMap" target="_blank" rel="noopener noreferrer" title="Repository on GitHub" aria-label="Repository on GitHub (opens in a new tab)">
+        <svg class="gh" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/></svg>
+      </a>
       <button class="icon-btn" id="theme-btn" type="button" title="Dark theme" aria-label="Dark theme" aria-pressed="false">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
       </button>
@@ -3534,6 +3541,7 @@ function initGlobal() {
   });
   const theme = store.get('wtrc-theme', null);
   if (theme) document.documentElement.dataset.theme = theme;
+  $('#gh-link').href = `https://github.com/${CORE.REPO}`; // the same repository as the README's links (core.js)
   const tb = $('#theme-btn');
   const syncTheme = () => tb.setAttribute('aria-pressed', String(document.documentElement.dataset.theme === 'dark'));
   syncTheme();
