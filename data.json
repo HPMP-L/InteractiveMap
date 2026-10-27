@@ -5827,7 +5827,7 @@
             }
           ],
           "thesis": {
-            "title": "What the thesis must deliver",
+            "title": "What the project must deliver",
             "body": "The unit costs of the operations are known. What is missing is the number of operations a trajectory will require (writes, messages, sleeps and resumptions), which cost models assume is given by the graph <a data-p=\"p014\">FaaS Workflows (TPDS)</a>. That is what a W→T prediction must provide to translate T into orchestration load."
           }
         },

@@ -288,4 +288,4 @@ If your paper or system is in this list, you can add this badge to your README o
 
 ## About this list
 
-It started as a literature review on predicting the infrastructure demand of LLM agents. The [interactive map](https://hpmp-l.github.io/InteractiveMap/) shows how the papers connect, and its three matrices code every paper. How the site and its suggestion pipeline work: [DEVELOPING.md](DEVELOPING.md).
+It started as a literature review on predicting the infrastructure demand of LLM agents. The [interactive map](https://hpmp-l.github.io/InteractiveMap/) shows how the papers connect, and its three matrices code every paper. How the site and its suggestion pipeline work: [DEVELOPING.md](DEVELOPING.md). Setting it up: [HOSTING.md](HOSTING.md).
